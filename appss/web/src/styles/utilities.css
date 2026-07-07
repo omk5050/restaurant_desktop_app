@@ -1,0 +1,53 @@
+@layer utilities {
+  .shadow-warm {
+    box-shadow: 0 8px 22px rgba(35, 27, 19, 0.07);
+  }
+
+  .shadow-warm-lg {
+    box-shadow: 0 8px 24px rgba(35, 27, 19, 0.08);
+  }
+
+  .shadow-modal {
+    box-shadow: 0px 8px 30px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Dark mode: shadows use lighter opacity */
+  html.dark .shadow-warm {
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+  }
+
+  html.dark .shadow-warm-lg {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  }
+
+  html.dark .shadow-modal {
+    box-shadow: 0px 8px 30px rgba(0, 0, 0, 0.45);
+  }
+
+  .press-effect {
+    transition: transform 150ms ease-out, opacity 150ms ease-out;
+  }
+
+  .press-effect:active {
+    transform: scale(0.97);
+  }
+
+  .press-effect-sm:active {
+    transform: scale(0.98);
+  }
+
+  .press-effect-lg:active {
+    transform: scale(0.96);
+  }
+
+  /* Quantity number pop — triggered by React key remount */
+  .animate-qty {
+    animation: qty-pop 180ms ease-out both;
+  }
+}
+
+@keyframes qty-pop {
+  0%   { transform: scale(0.7); opacity: 0.4; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}

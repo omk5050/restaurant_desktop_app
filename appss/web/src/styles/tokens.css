@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #F97316;
+  --color-primary-dark: #C2410C;
+  --color-primary-light: #FFF7ED;
+  --color-primary-mid: #FDBA74;
+  --color-ink: #111827;
+  --color-slate: #475569;
+  --color-blue: #2563EB;
+  --color-blue-light: #EFF6FF;
+  --color-green: #16A34A;
+  --color-green-light: #ECFDF3;
+  --color-gray: #94A3B8;
+  --color-gray-light: #F8FAFC;
+  --color-purple: #7C3AED;
+  --color-purple-light: #F5F3FF;
+  --color-yellow: #F59E0B;
+  --color-yellow-light: #FFFBEB;
+  --color-danger: #EF4444;
+  --color-bg: #F4F1EA;
+  --color-panel: #FBFAF7;
+  --color-warm-line: #E7DED2;
+  --color-espresso: #2B2118;
+  --color-text: #111827;
+  --color-text-sec: #667085;
+  --color-border: #E6E0D8;
+  
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  
+  /* shadcn UI variables */
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-card: #FFFFFF;
+  --color-card-foreground: var(--color-text);
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: var(--color-text);
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #FFFFFF;
+  --color-secondary-foreground: var(--color-text);
+  --color-muted: var(--color-gray-light);
+  --color-muted-foreground: var(--color-text-sec);
+  --color-accent: var(--color-primary-light);
+  --color-accent-foreground: var(--color-primary);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: #FFFFFF;
+  --color-ring: var(--color-primary);
+  --radius-lg: 1rem;
+  --radius-md: 0.75rem;
+  --radius-sm: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+}

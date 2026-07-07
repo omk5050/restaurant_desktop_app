@@ -1,0 +1,124 @@
+@import "./tokens.css";
+@import "./typography.css";
+@import "./utilities.css";
+
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    border-color: var(--color-border, currentColor);
+  }
+  
+  html {
+    font-size: 90%;
+  }
+
+  html.dark {
+    --color-bg: #111827;
+    --color-panel: #1F2937;
+    --color-border: #374151;
+    --color-text: #F9FAFB;
+    --color-text-sec: #9CA3AF;
+    --color-card: #1F2937;
+    --color-popover: #1F2937;
+    --color-secondary: #374151;
+    --color-secondary-foreground: #F9FAFB;
+    --color-muted: #374151;
+    --color-warm-line: #374151;
+    --color-espresso: #1F2937;
+    --color-gray-light: #374151;
+    
+    /* Dark mode status color overrides */
+    --color-blue-light: rgba(255, 255, 255, 0.06);
+    --color-green-light: rgba(255, 255, 255, 0.06);
+    --color-purple-light: rgba(255, 255, 255, 0.06);
+    --color-yellow-light: rgba(255, 255, 255, 0.06);
+  }
+
+  /* Dark mode accent overrides (higher specificity than data-accent) */
+  html.dark[data-accent] {
+    --color-primary-dark: var(--color-primary);
+    --color-primary-light: rgba(255, 255, 255, 0.06);
+    --color-primary-mid: var(--color-primary);
+  }
+
+  /* Accents */
+  html[data-accent="orange"] {
+    --color-primary: #F97316;
+    --color-primary-dark: #C2410C;
+    --color-primary-light: #FFF7ED;
+    --color-primary-mid: #FDBA74;
+  }
+  html[data-accent="blue"] {
+    --color-primary: #2563EB;
+    --color-primary-dark: #1D4ED8;
+    --color-primary-light: #EFF6FF;
+    --color-primary-mid: #93C5FD;
+  }
+  html[data-accent="green"] {
+    --color-primary: #16A34A;
+    --color-primary-dark: #15803D;
+    --color-primary-light: #F0FDF4;
+    --color-primary-mid: #86EFAC;
+  }
+  html[data-accent="purple"] {
+    --color-primary: #7C3AED;
+    --color-primary-dark: #6D28D9;
+    --color-primary-light: #F5F3FF;
+    --color-primary-mid: #C4B5FD;
+  }
+
+  /* UI Scale */
+  html[data-scale="90"] { font-size: 80%; }
+  html[data-scale="100"] { font-size: 90%; }
+  html[data-scale="110"] { font-size: 100%; }
+
+  /* Compact Mode */
+  html[data-compact="true"] {
+    --spacing: 0.225rem;
+  }
+  
+  /* Card Style: Sharp */
+  html[data-card-style="sharp"] {
+    --radius-3xl: 0.75rem;
+    --radius-2xl: 0.75rem;
+    --radius-xl: 0.5rem;
+    --radius-lg: 0.5rem;
+  }
+
+  /* Reduced Motion: remove all lifts and scale transforms */
+  html[data-reduced-motion="true"] * {
+    --tw-scale-x: 1 !important;
+    --tw-scale-y: 1 !important;
+    transition-duration: 0.1s !important;
+  }
+  html[data-reduced-motion="true"] [class*="hover:-translate"],
+  html[data-reduced-motion="true"] [class*="active:scale"],
+  html[data-reduced-motion="true"] [class*="active:-translate"] {
+    transform: none !important;
+  }
+  
+  html, body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Semantic scrollbars */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  /* Webkit scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text-sec);
+  }
+}
