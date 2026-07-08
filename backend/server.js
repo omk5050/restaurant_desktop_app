@@ -218,10 +218,10 @@ const REQUIRED_CATEGORIES = [
 const REQUIRED_MENU_ITEMS = [];
 
 
-const SUPER_ADMIN_EMAIL = "superadmin@restaurantapp.com";
-const SUPER_ADMIN_PASS  = "SuperAdmin@123";
-const DEMO_ADMIN_EMAIL  = "admin@hotelgrand.com";
-const DEMO_ADMIN_PASS   = "Admin@123";
+const SUPER_ADMIN_EMAIL = "superadmin@restaurant.com";
+const SUPER_ADMIN_PASS  = "superadmin123";
+const DEMO_ADMIN_EMAIL  = "admin@restaurant.com";
+const DEMO_ADMIN_PASS   = "admin123";
 
 async function seedDatabase() {
   try {
