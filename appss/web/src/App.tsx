@@ -165,7 +165,7 @@ export function App() {
           name: item.name,
           price: item.price,
           image: ""
-        }, item.qty)
+        }, item.qty, true)
       })
     } else {
       setCustomerName("")

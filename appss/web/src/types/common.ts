@@ -95,5 +95,6 @@ export interface CartItem {
   quantity: number
   image:    string
   kotSent:  boolean   // true once this item has been sent via KOT
+  kotQty?:  number    // quantity sent to kitchen (Sprint 5)
 }
 export type Cart = Record<string, CartItem>

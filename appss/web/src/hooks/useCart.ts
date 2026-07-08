@@ -15,7 +15,7 @@ export interface UseCartReturn {
   cartItems:       CartItem[]
   itemCount:       number
   subtotal:        number
-  addItem:         (item: PosItem, quantity?: number) => void
+  addItem:         (item: PosItem, quantity?: number, kotSent?: boolean) => void
   removeItem:      (id: string) => void
   clearItem:       (id: string) => void
   clearCart:       () => void
@@ -27,23 +27,39 @@ export interface UseCartReturn {
 export function useCart(): UseCartReturn {
   const [cart, setCart] = useState<Cart>({})
 
-  const addItem = useCallback((item: PosItem, quantity = 1) => {
-    setCart(prev => ({
-      ...prev,
-      [item.id]: prev[item.id]
-        ? { ...prev[item.id], quantity: prev[item.id].quantity + quantity, kotSent: false }
-        : { id: item.id, name: item.name, price: item.price, image: item.image, quantity, kotSent: false },
-    }))
+  const addItem = useCallback((item: PosItem, quantity = 1, isSavedOrder = false) => {
+    setCart(prev => {
+      const existing = prev[item.id]
+      const newQty = existing ? existing.quantity + quantity : quantity
+      const newKotQty = isSavedOrder ? newQty : (existing?.kotQty ?? 0)
+      const isKotSent = newQty <= newKotQty
+
+      return {
+        ...prev,
+        [item.id]: {
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          image: item.image,
+          quantity: newQty,
+          kotQty: newKotQty,
+          kotSent: isKotSent,
+        }
+      }
+    })
   }, [])
 
   const removeItem = useCallback((id: string) => {
     setCart(prev => {
       if (!prev[id]) return prev
-      if (prev[id].quantity <= 1) {
+      const existing = prev[id]
+      if (existing.quantity <= 1) {
         const { [id]: _removed, ...rest } = prev
         return rest
       }
-      return { ...prev, [id]: { ...prev[id], quantity: prev[id].quantity - 1 } }
+      const newQty = existing.quantity - 1
+      const isKotSent = newQty <= (existing.kotQty ?? 0)
+      return { ...prev, [id]: { ...existing, quantity: newQty, kotSent: isKotSent } }
     })
   }, [])
 
@@ -63,7 +79,11 @@ export function useCart(): UseCartReturn {
     setCart(prev => {
       const updated: Cart = {}
       for (const key of Object.keys(prev)) {
-        updated[key] = { ...prev[key], kotSent: true }
+        updated[key] = {
+          ...prev[key],
+          kotQty: prev[key].quantity,
+          kotSent: true,
+        }
       }
       return updated
     })
