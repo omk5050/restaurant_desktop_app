@@ -2,7 +2,7 @@ import { type ReactNode, useState, useEffect } from "react"
 import {
   Building2, Check, Globe, Percent, Hash,
   Upload, Printer, Palette,
-  RotateCcw, Sun, Moon, Monitor
+  RotateCcw, Sun, Moon, Monitor, LogOut
 } from "lucide-react"
 import { Button, Card, Input } from "@/components/ui"
 import { cn } from "@/lib/cn"
@@ -44,7 +44,11 @@ const SectionGroup = ({ title, description, children }: { title: string; descrip
   </Card>
 )
 
-export function SettingsPage() {
+interface SettingsPageProps {
+  onLogout?: () => void
+}
+
+export function SettingsPage({ onLogout }: SettingsPageProps) {
   const { settings: apiSettings, fetchSettings, updateSettings } = useSettingsStore()
   const [settings, setSettings] = useState<RestaurantSettings>(defaultSettings)
   const [saved,    setSaved]    = useState(false)
@@ -379,6 +383,11 @@ export function SettingsPage() {
           <Button onClick={handleSave} className={cn("h-10 rounded-xl px-4 text-[0.8125rem] transition-colors", saved && "border-green bg-green text-white hover:bg-green/90")}>
             {saved ? <><Check size={16} /> Saved Successfully</> : "Save Changes"}
           </Button>
+          {onLogout && (
+            <Button variant="secondary" onClick={onLogout} className="h-10 rounded-xl px-4 text-[0.8125rem] border-danger/40 text-danger hover:bg-danger/10">
+              <LogOut size={16} /> Log Out
+            </Button>
+          )}
         </div>
       </header>
 

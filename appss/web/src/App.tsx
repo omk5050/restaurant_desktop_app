@@ -18,6 +18,7 @@ import { ReportsPage }    from "@/pages/ReportsPage"
 import { CategoryPage }         from "@/pages/admin/CategoryPage"
 import { TablesManagementPage } from "@/pages/admin/TablesManagementPage"
 import { SettingsPage }         from "@/pages/admin/SettingsPage"
+import { LoginPage }            from "@/pages/LoginPage"
 
 // ── Helpers ────────────────────────────────────────────────────────
 const FULLSCREEN_SCREENS: Screen[] = ["tableOrder", "payment", "invoice"]
@@ -55,6 +56,7 @@ const AppShell = ({
 
 // ── Root ───────────────────────────────────────────────────────────
 export function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [screen,        setScreen]        = useState<Screen>("tables")
   const [selectedTable, setSelectedTable] = useState<DiningTable | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash")
@@ -63,9 +65,37 @@ export function App() {
 
   const cart = useCart()
 
-  // Load settings once at root level
+  // Clear auth token on load/reload to force logout
+  useEffect(() => {
+    localStorage.removeItem("pos_token")
+    sessionStorage.removeItem("pos_token")
+    setIsAuthenticated(false)
+  }, [])
+
+  // Load settings once at root level when authenticated
   const { settings, fetchSettings } = useSettingsStore()
-  useEffect(() => { fetchSettings() }, [fetchSettings])
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchSettings()
+    }
+  }, [isAuthenticated, fetchSettings])
+
+  // Fetch initial orders when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      useOrderStore.getState().fetchOrders()
+    }
+  }, [isAuthenticated])
+
+  const handleLoginSuccess = (token: string, _role: string) => {
+    localStorage.setItem("pos_token", token)
+    setIsAuthenticated(true)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("pos_token")
+    setIsAuthenticated(false)
+  }
 
   // GST and service charge from settings (fallback to 5% GST)
   const gstPercent            = settings?.gstPercent            ?? 5
@@ -113,6 +143,10 @@ export function App() {
   }
 
   const fullscreen = FULLSCREEN_SCREENS.includes(screen)
+
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />
+  }
 
   return (
     <AppShell
@@ -182,7 +216,7 @@ export function App() {
       {/* ── Admin ────────────────────────────────────────── */}
       {screen === "categories"   && <CategoryPage />}
       {screen === "tables-admin" && <TablesManagementPage />}
-      {screen === "settings"     && <SettingsPage />}
+      {screen === "settings"     && <SettingsPage onLogout={handleLogout} />}
     </AppShell>
   )
 }
