@@ -76,7 +76,7 @@ export function App() {
 
   // Settings-driven display values
   const restaurantName = settings?.restaurantName || "Hotel Grand"
-  const tagline        = "Restaurant & Family Dining"
+  const tagline        = settings?.tagline        || "Restaurant & Family Dining"
   const address        = settings?.address        || ""
   const phone          = settings?.phone          || ""
   const gstNumber      = settings?.gstNumber      || ""

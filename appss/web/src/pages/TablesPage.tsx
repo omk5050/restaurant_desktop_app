@@ -139,6 +139,8 @@ export function TablesPage({ onOpenTable, restaurantName = "Hotel Grand", taglin
 
   useEffect(() => {
     fetchTables()
+    const interval = setInterval(fetchTables, 5000)
+    return () => clearInterval(interval)
   }, [fetchTables])
 
   useKeyboardShortcuts([

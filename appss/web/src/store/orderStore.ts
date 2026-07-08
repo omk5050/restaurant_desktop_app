@@ -120,5 +120,5 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   },
 
   getOrderForTable: (tableId) =>
-    get().orders.find(o => o.tableId === tableId && (o.status === "open" || o.status === "hold")),
+    get().orders.find(o => o.tableId === tableId && (o.status === "open" || o.status === "hold" || o.status === "billed")),
 }))

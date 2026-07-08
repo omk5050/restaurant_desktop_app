@@ -1288,7 +1288,7 @@ export function TableOrderPage({
     isAvailable: i.isAvailable,
   }))
 
-  const [activeCategory, setActiveCategory] = useState<string>(posCategories[0] || "All")
+  const [activeCategory, setActiveCategory] = useState<string>("")
   const [vegFilter, setVegFilter]           = useState<VegFilter>("all")
   const searchRef = useRef<HTMLInputElement>(null)
   const [search, setSearch]                 = useState("")
@@ -1421,7 +1421,7 @@ export function TableOrderPage({
           active={activeCategory}
           itemCounts={itemCounts}
           apiCategories={apiCategories}
-          onSelect={cat => setActiveCategory(cat as PosCategory)}
+          onSelect={cat => setActiveCategory(prev => prev === cat ? "" : (cat as PosCategory))}
         />
 
         {/* COL 2: Search + menu grid */}

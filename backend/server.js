@@ -68,6 +68,7 @@ mongoose
 const SettingsSchema = new mongoose.Schema({
   adminId:              { type: String, required: true, unique: true },
   restaurantName:       { type: String, default: "Hotel Grand" },
+  tagline:              { type: String, default: "" },
   address:              { type: String, default: "123 MG Road, Your City" },
   phone:                { type: String, default: "" },
   email:                { type: String, default: "" },
@@ -94,6 +95,7 @@ const TableSchema = new mongoose.Schema({
   section:        { type: String, default: "Restaurant" },
   status:         { type: String, enum: ["empty", "active", "bill", "paid"], default: "empty" },
   currentOrderId: { type: String, default: null },
+  paidAt:         { type: Date, default: null },
 });
 TableSchema.index({ adminId: 1, id: 1 }, { unique: true });
 const Table = mongoose.model("Table", TableSchema);
@@ -368,6 +370,20 @@ app.get("/api/tables", async (req, res) => {
   try {
     const adminId = req.query.adminId || (await getDemoAdminId());
     const tables = await Table.find({ adminId }).sort({ id: 1 });
+
+    // Auto-empty tables after 2 minutes grace time
+    const now = new Date();
+    for (const table of tables) {
+      if (table.status === "paid" && table.paidAt) {
+        const elapsed = now.getTime() - new Date(table.paidAt).getTime();
+        if (elapsed >= 2 * 60 * 1000) {
+          table.status = "empty";
+          table.paidAt = null;
+          await table.save();
+        }
+      }
+    }
+
     res.json(tables);
   } catch (err) {
     console.error("Get tables error:", err);
@@ -720,7 +736,7 @@ app.post("/api/orders/:id/pay", async (req, res) => {
     // Free the table
     await Table.findOneAndUpdate(
       { adminId, id: order.tableId },
-      { $set: { status: "paid", currentOrderId: null } }
+      { $set: { status: "paid", currentOrderId: null, paidAt: new Date() } }
     );
 
     // Create invoice

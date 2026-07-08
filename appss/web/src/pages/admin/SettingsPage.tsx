@@ -61,6 +61,7 @@ export function SettingsPage() {
       setSettings(prev => ({
         ...prev,
         name: apiSettings.restaurantName || prev.name,
+        tagline: apiSettings.tagline || prev.tagline,
         address: apiSettings.address || prev.address,
         phone: apiSettings.phone || prev.phone,
         email: apiSettings.email || prev.email,
@@ -82,6 +83,7 @@ export function SettingsPage() {
   const handleSave = async () => {
     await updateSettings({
       restaurantName: settings.name,
+      tagline: settings.tagline,
       address: settings.address,
       phone: settings.phone,
       email: settings.email,

@@ -15,6 +15,7 @@ export interface ApiTable {
   section:        TableSection
   status:         TableStatus
   currentOrderId: string | null
+  paidAt?:        string
 }
 
 interface TableState {
