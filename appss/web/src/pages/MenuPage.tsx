@@ -130,12 +130,13 @@ const Field = ({ label, hint, children }: { label: string; hint?: string; childr
 // ── Image uploader widget ───────────────────────────────────────────
 function ImageUploader({ imageUrl, onChange }: { imageUrl: string; onChange: (url: string) => void }) {
   const [uploading, setUploading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState("")
+  const [pendingCrop, setPendingCrop] = useState<{ file: File; img: HTMLImageElement } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const uploadFile = async (file: File) => {
     setUploading(true)
+    setErrorMsg("")
     const formData = new FormData()
     formData.append("image", file)
     try {
@@ -144,11 +145,63 @@ function ImageUploader({ imageUrl, onChange }: { imageUrl: string; onChange: (ur
       })
       onChange(data.url)
     } catch {
-      alert("Failed to upload image. Please try again.")
+      setErrorMsg("Failed to upload image. Please try again.")
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ""
     }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target?.result as string
+      img.onload = () => {
+        if (img.width !== img.height) {
+          setPendingCrop({ file, img })
+        } else {
+          uploadFile(file)
+        }
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleConfirmCrop = () => {
+    if (!pendingCrop) return
+    const { file, img } = pendingCrop
+
+    const size = Math.min(img.width, img.height)
+    const sx = (img.width - size) / 2
+    const sy = (img.height - size) / 2
+
+    const canvas = document.createElement("canvas")
+    canvas.width = 600
+    canvas.height = 600
+    const ctx = canvas.getContext("2d")
+    if (ctx) {
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, 600, 600)
+    }
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const croppedFile = new File([blob], file.name, { type: file.type })
+        uploadFile(croppedFile)
+      } else {
+        uploadFile(file) // Fallback to original
+      }
+    }, file.type || "image/jpeg")
+
+    setPendingCrop(null)
+  }
+
+  const handleKeepOriginal = () => {
+    if (!pendingCrop) return
+    uploadFile(pendingCrop.file)
+    setPendingCrop(null)
   }
 
   return (
@@ -167,7 +220,7 @@ function ImageUploader({ imageUrl, onChange }: { imageUrl: string; onChange: (ur
         )}
       </div>
       <div className="flex flex-col gap-2">
-        <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+        <input ref={inputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -193,6 +246,35 @@ function ImageUploader({ imageUrl, onChange }: { imageUrl: string; onChange: (ur
           <p className="text-[0.625rem] text-green font-bold">✓ Image uploaded</p>
         )}
       </div>
+
+      {/* Crop Dialog Option */}
+      <Dialog
+        open={pendingCrop !== null}
+        onClose={() => setPendingCrop(null)}
+        title="Crop Image to Square?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={handleKeepOriginal}>Keep Original</Button>
+            <Button onClick={handleConfirmCrop}>Crop to Square</Button>
+          </>
+        }
+      >
+        <p className="text-[0.875rem] text-text-sec">
+          The selected image is not square. Would you like to crop it to a square to keep item cards equal in size?
+        </p>
+      </Dialog>
+
+      {/* Error Dialog */}
+      <Dialog
+        open={errorMsg !== ""}
+        onClose={() => setErrorMsg("")}
+        title="Upload Error"
+        size="sm"
+        footer={<Button onClick={() => setErrorMsg("")}>OK</Button>}
+      >
+        <p className="text-[0.875rem] text-text-sec">{errorMsg}</p>
+      </Dialog>
     </div>
   )
 }
@@ -332,6 +414,11 @@ export function MenuPage() {
   const [manageTagsOpen,    setManageTagsOpen]     = useState(false)
   const [deleteTargetId,    setDeleteTargetId]     = useState<string | null>(null)
   const [isSaving,          setIsSaving]           = useState(false)
+  const [customAlert, setCustomAlert] = useState<{ open: boolean; title: string; message: string }>({
+    open: false,
+    title: "",
+    message: "",
+  })
 
   // Add form state
   const [addForm, setAddForm] = useState<ItemFormState>(BLANK_FORM)
@@ -374,11 +461,22 @@ export function MenuPage() {
 
   const handleSaveNewItem = async () => {
     if (!addForm.name.trim() || !addForm.price || !addForm.category) {
-      alert("Please fill in Name, Price, and Category.")
+      setCustomAlert({
+        open: true,
+        title: "Validation Error",
+        message: "Please fill in Name, Price, and Category.",
+      })
       return
     }
     const priceVal = Number(addForm.price)
-    if (isNaN(priceVal) || priceVal <= 0) { alert("Price must be a positive number."); return }
+    if (isNaN(priceVal) || priceVal <= 0) {
+      setCustomAlert({
+        open: true,
+        title: "Validation Error",
+        message: "Price must be a positive number.",
+      })
+      return
+    }
     setIsSaving(true)
     await addItem({
       name:        addForm.name.trim(),
@@ -412,9 +510,23 @@ export function MenuPage() {
 
   const handleSaveEdit = async () => {
     if (!editItem) return
-    if (!editForm.name.trim() || !editForm.price) { alert("Name and Price are required."); return }
+    if (!editForm.name.trim() || !editForm.price) {
+      setCustomAlert({
+        open: true,
+        title: "Validation Error",
+        message: "Name and Price are required.",
+      })
+      return
+    }
     const priceVal = Number(editForm.price)
-    if (isNaN(priceVal) || priceVal <= 0) { alert("Price must be a positive number."); return }
+    if (isNaN(priceVal) || priceVal <= 0) {
+      setCustomAlert({
+        open: true,
+        title: "Validation Error",
+        message: "Price must be a positive number.",
+      })
+      return
+    }
     setIsSaving(true)
     await updateItem(editItem.id, {
       name:        editForm.name.trim(),
@@ -624,6 +736,17 @@ export function MenuPage() {
         title="Delete Menu Item"
         message="Are you sure you want to delete this menu item? This action is permanent."
       />
+
+      {/* Custom Alert Dialog */}
+      <Dialog
+        open={customAlert.open}
+        onClose={() => setCustomAlert(prev => ({ ...prev, open: false }))}
+        title={customAlert.title}
+        size="sm"
+        footer={<Button onClick={() => setCustomAlert(prev => ({ ...prev, open: false }))}>OK</Button>}
+      >
+        <p className="text-[0.875rem] text-text-sec">{customAlert.message}</p>
+      </Dialog>
     </div>
   )
 }

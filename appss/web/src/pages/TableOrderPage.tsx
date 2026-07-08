@@ -166,20 +166,22 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
       )}
     >
       {/* ── Image area ─── */}
-      <div className="relative h-[9rem] w-full shrink-0 overflow-hidden bg-panel/50 pt-3 flex items-center justify-center">
-        {item.image ? (
-          <img
-            alt={item.name}
-            src={item.image}
-            className="h-[7.5rem] w-auto max-w-[85%] object-contain drop-shadow-md mix-blend-multiply"
-          />
-        ) : (
-          <span className="text-[4rem]">{item.emoji}</span>
-        )}
+      <div className="relative h-[9.5rem] w-full shrink-0 overflow-hidden bg-panel/50 flex items-center justify-center p-3">
+        <div className="w-full h-full rounded-2xl overflow-hidden bg-white flex items-center justify-center aspect-square shadow-sm">
+          {item.image ? (
+            <img
+              alt={item.name}
+              src={item.image}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="text-[3.5rem]">{item.emoji}</span>
+          )}
+        </div>
         {/* Veg/Non-Veg indicator */}
         <span
           className={cn(
-            "absolute right-3 top-3 flex size-5 items-center justify-center rounded-sm border-2 border-card",
+            "absolute right-4.5 top-4.5 flex size-5 items-center justify-center rounded-sm border-2 border-card shadow-sm",
             isVeg ? "bg-green-light" : "bg-danger/10",
           )}
         >
@@ -1477,7 +1479,7 @@ export function TableOrderPage({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fit,14.5rem)] gap-4 justify-center">
+              <div className="grid grid-cols-[repeat(auto-fill,14.5rem)] gap-4 justify-start">
                 {filteredItems.map(item => (
                   <MenuCard
                     key={item.id}
