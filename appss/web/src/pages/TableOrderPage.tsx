@@ -259,7 +259,7 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
 function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
   tableName:   string
   orderNo:     string
-  items:       Array<{ name: string; quantity: number; kotSent: boolean }>
+  items:       Array<{ name: string; quantity: number }>
   kitchenNote: string
 }) {
   const now = new Date()
@@ -276,8 +276,6 @@ function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
   hours = hours % 12
   hours = hours ? hours : 12 // the hour '0' should be '12'
   const dateStr = `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`
-
-  const unsentItems = items.filter(i => !i.kotSent)
 
   const displayOrderNo = orderNo.startsWith("#") ? orderNo : `#${orderNo}`
 
@@ -319,7 +317,7 @@ function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
       </div>
 
       <div className="text-left text-[16px] font-bold space-y-1" style={{ fontWeight: 900, lineHeight: "1.4" }}>
-        {unsentItems.map((item, idx) => (
+        {items.map((item, idx) => (
           <div key={idx}>
             {item.name} x{item.quantity}
           </div>
@@ -370,7 +368,9 @@ interface BillingState {
 }
 
 function computeTotals(subtotal: number, billing: BillingState) {
-  const gstAmount    = billing.gstEnabled ? Math.round(subtotal * billing.gstRate / 100) : 0
+  const cgst = billing.gstEnabled ? Math.round(subtotal * (billing.gstRate / 2) / 100) : 0
+  const sgst = billing.gstEnabled ? Math.round(subtotal * (billing.gstRate / 2) / 100) : 0
+  const gstAmount = cgst + sgst
   const extraTotal   = billing.extraCharges.reduce((s, c) =>
     s + (c.isPercent ? Math.round(subtotal * c.value / 100) : c.value), 0)
   const afterTax     = subtotal + gstAmount + extraTotal
@@ -395,7 +395,7 @@ function OrderSummary({
   onKitchenNoteClick: () => void
   onKot:              () => void
   onKotPrint:         () => void
-  onSave:             () => void
+  onSave:             (withPrint: boolean) => void
   onPay:              () => void
   onHold:             () => void
   onSplitBill:        () => void
@@ -540,10 +540,16 @@ function OrderSummary({
                 <span className="tabular-nums">{money.format(cart.subtotal)}</span>
               </div>
               {billing.gstEnabled && (
-                <div className="flex justify-between text-[0.75rem] text-text-sec">
-                  <span>GST ({billing.gstRate}%)</span>
-                  <span className="tabular-nums">{money.format(gstAmount)}</span>
-                </div>
+                <>
+                  <div className="flex justify-between text-[0.75rem] text-text-sec">
+                    <span>CGST ({billing.gstRate / 2}%)</span>
+                    <span className="tabular-nums">{money.format(Math.round(gstAmount / 2))}</span>
+                  </div>
+                  <div className="flex justify-between text-[0.75rem] text-text-sec">
+                    <span>SGST ({billing.gstRate / 2}%)</span>
+                    <span className="tabular-nums">{money.format(gstAmount - Math.round(gstAmount / 2))}</span>
+                  </div>
+                </>
               )}
               {billing.extraCharges.map(c => (
                 <div key={c.id} className="flex justify-between text-[0.75rem] text-text-sec">
@@ -572,10 +578,10 @@ function OrderSummary({
 
         {/* Primary actions row */}
         <div className="grid grid-cols-3 gap-1.5 px-3 pb-1.5">
-          <button onClick={onSave} className={BTN_PRIMARY}>
+          <button onClick={() => onSave(false)} className={BTN_PRIMARY}>
             <Receipt size={12} />Save
           </button>
-          <button onClick={onSave} className={BTN_PRIMARY}>
+          <button onClick={() => onSave(true)} className={BTN_PRIMARY}>
             <Printer size={12} />Save &amp; Print
           </button>
           <button onClick={onPay} className={cn(BTN_OUTLINED, "border-primary text-primary hover:bg-primary-light")}>
@@ -1078,11 +1084,12 @@ interface TableOrderPageProps {
   onKitchenNote:  (v: string) => void
   onBack:         () => void
   onPayment:      () => void
+  onSave:         (withPrint: boolean) => void
 }
 
 export function TableOrderPage({
   selectedTable, cart, customerName, kitchenNote,
-  onCustomerName, onKitchenNote, onBack, onPayment,
+  onCustomerName, onKitchenNote, onBack, onPayment, onSave,
 }: TableOrderPageProps) {
   const { items: apiItems, categories: apiCategories, fetchMenu, fetchCategories } = useMenuStore()
   const { createOrder, updateOrder, fetchOrders } = useOrderStore()
@@ -1177,10 +1184,31 @@ export function TableOrderPage({
     return order
   }
 
+  // State to hold KOT items to print
+  const [kotItemsToPrint, setKotItemsToPrint] = useState<Array<{ name: string; quantity: number }>>([])
+  // State to hold reasons for items removed during this edit session
+  const [removedItemsReasons, setRemovedItemsReasons] = useState<Array<{ name: string; qty: number; reason: string }>>([])
+
   // ── KOT handlers ─────────────────────────────────────────────────────────
   const fireKot = async (withPrint: boolean) => {
+    // 1. Identify unsent items that are being fired in this batch
+    const unsent = cart.cartItems.filter(i => !i.kotSent).map(i => ({
+      name: i.name,
+      quantity: i.quantity,
+    }))
+    setKotItemsToPrint(unsent)
+
     // Save/update order as open
     const order = await saveCurrentOrder("open")
+
+    // Determine type (new KOT vs update KOT)
+    const isUpdate = cart.cartItems.some(i => i.kotSent)
+    
+    // Check if there are removal reasons during this session, and format a combined reason string
+    let combinedReason = ""
+    if (isUpdate && removedItemsReasons.length > 0) {
+      combinedReason = removedItemsReasons.map(r => `${r.name} (x${r.qty}) removed: ${r.reason}`).join("; ")
+    }
 
     // Add to KOT queue
     addEvent({
@@ -1189,8 +1217,12 @@ export function TableOrderPage({
       tableName:   selectedTable.name,
       items:       cart.cartItems.map(i => ({ name: i.name, qty: i.quantity, price: i.price, kotSent: i.kotSent })),
       kitchenNote: kitchenNote,
-      type:        cart.cartItems.some(i => i.kotSent) ? "update" : "new",
+      type:        isUpdate ? "update" : "new",
+      reason:      combinedReason || undefined,
     })
+
+    // Clear session removal reasons list
+    setRemovedItemsReasons([])
 
     // Mark all items as kotSent
     cart.markAllKotSent()
@@ -1220,7 +1252,14 @@ export function TableOrderPage({
   const handleRemovalConfirmed = (reason: string) => {
     if (!removalTarget) return
     cart.removeItem(removalTarget.id)
-    // Send removal event to queue
+    
+    // Add to session removal reasons list
+    setRemovedItemsReasons(prev => [
+      ...prev,
+      { name: removalTarget.name, qty: 1, reason }
+    ])
+
+    // Still send removal event to queue immediately for logging
     addEvent({
       orderId:     selectedTable.currentOrderId || null,
       tableId:     selectedTable.id,
@@ -1234,9 +1273,9 @@ export function TableOrderPage({
   }
 
   // ── Save → Bill Ready ────────────────────────────────────────────────────
-  const handleSave = async () => {
+  const handleSave = async (withPrint = false) => {
     await saveCurrentOrder("billed")
-    onBack()
+    onSave(withPrint)
   }
 
   // ── Hold ─────────────────────────────────────────────────────────────────
@@ -1518,7 +1557,7 @@ export function TableOrderPage({
       <KotReceiptPrint
         tableName={selectedTable.name}
         orderNo={selectedTable.currentOrderId || "NEW"}
-        items={cart.cartItems}
+        items={kotItemsToPrint.length > 0 ? kotItemsToPrint : cart.cartItems.filter(i => !i.kotSent)}
         kitchenNote={kitchenNote}
       />
 

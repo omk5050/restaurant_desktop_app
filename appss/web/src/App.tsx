@@ -66,6 +66,7 @@ export function App() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash")
   const [customerName,  setCustomerName]  = useState("")
   const [kitchenNote,   setKitchenNote]   = useState("")
+  const [isTempBill,    setIsTempBill]    = useState(false)
 
   const cart = useCart()
 
@@ -132,9 +133,13 @@ export function App() {
   // GST and service charge from settings (fallback to 5% GST)
   const gstPercent            = settings?.gstPercent            ?? 5
   const serviceChargePercent  = settings?.serviceChargePercent  ?? 0
-  const gst            = Math.round(cart.subtotal * gstPercent / 100)
-  const serviceCharge  = Math.round(cart.subtotal * serviceChargePercent / 100)
-  const total          = cart.subtotal + gst + serviceCharge
+  const cgstRate = gstPercent / 2
+  const sgstRate = gstPercent / 2
+  const cgst            = Math.round(cart.subtotal * cgstRate / 100)
+  const sgst            = Math.round(cart.subtotal * sgstRate / 100)
+  const gst             = cgst + sgst
+  const serviceCharge   = Math.round(cart.subtotal * serviceChargePercent / 100)
+  const total           = cart.subtotal + gst + serviceCharge
 
   // Settings-driven display values
   const restaurantName = settings?.restaurantName || "Hotel Grand"
@@ -224,6 +229,14 @@ export function App() {
               onCustomerName={setCustomerName}
               onKitchenNote={setKitchenNote}
               onPayment={() => setScreen("payment")}
+              onSave={(withPrint) => {
+                if (withPrint) {
+                  setIsTempBill(true)
+                  setScreen("invoice")
+                } else {
+                  setScreen("tables")
+                }
+              }}
               selectedTable={selectedTable}
             />
           )}
@@ -247,7 +260,11 @@ export function App() {
               customerName={customerName}
               gst={gst}
               serviceCharge={serviceCharge}
-              onBackToTables={() => setScreen("tables")}
+              isTemporary={isTempBill}
+              onBackToTables={() => {
+                setIsTempBill(false)
+                setScreen("tables")
+              }}
               paymentMethod={paymentMethod}
               selectedTable={selectedTable}
               subtotal={cart.subtotal}

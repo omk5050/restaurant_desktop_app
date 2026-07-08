@@ -17,6 +17,7 @@ interface InvoicePageProps {
   paymentMethod:   PaymentMethod
   customerName:    string
   onBackToTables:  () => void
+  isTemporary?:    boolean
   // Dynamic settings
   restaurantName?: string
   tagline?:        string
@@ -28,7 +29,7 @@ interface InvoicePageProps {
 
 export function InvoicePage({
   selectedTable, cartItems, subtotal, gst, serviceCharge, total,
-  paymentMethod, customerName, onBackToTables,
+  paymentMethod, customerName, onBackToTables, isTemporary = false,
   restaurantName = "Hotel Grand",
   tagline        = "Restaurant & Family Dining",
   address        = "",
@@ -50,7 +51,7 @@ export function InvoicePage({
     <div className="flex h-screen flex-col overflow-hidden bg-bg">
       <div className="print:hidden">
         <Header
-          title="Invoice"
+          title={isTemporary ? "Temporary Bill" : "Invoice"}
           trailing={
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={onBackToTables}>
@@ -97,8 +98,8 @@ export function InvoicePage({
                   <span className="text-right font-bold text-text truncate">{customerName}</span>
                 </>
               )}
-              <span className="text-text-sec">Payment</span>
-              <span className="text-right font-bold capitalize text-text">{paymentMethod}</span>
+              <span className="text-text-sec">{isTemporary ? "Status" : "Payment"}</span>
+              <span className="text-right font-bold capitalize text-text">{isTemporary ? "Temporary / Unpaid" : paymentMethod}</span>
             </div>
 
             {/* Items */}
@@ -184,6 +185,7 @@ export function InvoicePage({
             {/* Header */}
             <div style={{ textAlign: "center", marginBottom: "4px" }}>
               <div style={{ fontSize: "16px", fontWeight: 900, letterSpacing: "0.5px" }}>{restaurantName}</div>
+              {isTemporary && <div style={{ fontSize: "12px", fontWeight: 900, color: "#000", marginTop: "2px" }}>*** TEMPORARY BILL ***</div>}
               {tagline && <div style={{ fontSize: "11px", fontWeight: 600 }}>{tagline}</div>}
               {address && <div style={{ fontSize: "10px" }}>{address}</div>}
               {phone && <div style={{ fontSize: "10px" }}>{phone}</div>}
@@ -198,7 +200,7 @@ export function InvoicePage({
               <div style={{ display: "flex", justifyContent: "space-between" }}><span>Time</span><span style={{ fontWeight: 700 }}>{timeStr}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span>Table</span><span style={{ fontWeight: 700 }}>{selectedTable.name}</span></div>
               {customerName && <div style={{ display: "flex", justifyContent: "space-between" }}><span>Customer</span><span style={{ fontWeight: 700 }}>{customerName}</span></div>}
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Payment</span><span style={{ fontWeight: 700, textTransform: "capitalize" }}>{paymentMethod}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>{isTemporary ? "Status" : "Payment"}</span><span style={{ fontWeight: 700, textTransform: "capitalize" }}>{isTemporary ? "Temporary / Unpaid" : paymentMethod}</span></div>
             </div>
             <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
 
@@ -249,7 +251,7 @@ export function InvoicePage({
           {/* Action buttons (hidden when printing) */}
           <div className="mt-5 flex gap-3 print:hidden">
             <Button variant="secondary" onClick={onBackToTables} className="h-11 flex-1">
-              <ArrowLeft size={16} /> New Order
+              <ArrowLeft size={16} /> {isTemporary ? "Back to Tables" : "New Order"}
             </Button>
             <Button onClick={() => window.print()} className="h-11 flex-1">
               <ReceiptText size={16} /> Print

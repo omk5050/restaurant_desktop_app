@@ -114,6 +114,7 @@ function ConfirmDialog({
 
 // ── Main component ─────────────────────────────────────────────────
 import { useOrderStore } from "@/store/orderStore"
+import { useSettingsStore } from "@/store/settingsStore"
 
 interface PaymentPageProps {
   selectedTable: DiningTable
@@ -129,6 +130,8 @@ export function PaymentPage({
   selectedTable, cartItems, subtotal, gst, total, onBack, onComplete,
 }: PaymentPageProps) {
   const { processPayment } = useOrderStore()
+  const { settings } = useSettingsStore()
+  const gstPercent = settings?.gstPercent ?? 5
   const [method,       setMethod]       = useState<PaymentMethod>("cash")
   const [cashTendered, setCashTendered] = useState<string>("")
   const [showConfirm,  setShowConfirm]  = useState(false)
@@ -205,8 +208,12 @@ export function PaymentPage({
               <span className="tabular-nums">{money.format(subtotal)}</span>
             </div>
             <div className="flex justify-between text-[0.8125rem] text-text-sec">
-              <span>GST (15%)</span>
-              <span className="tabular-nums">{money.format(gst)}</span>
+              <span>CGST ({gstPercent / 2}%)</span>
+              <span className="tabular-nums">{money.format(Math.round(gst / 2))}</span>
+            </div>
+            <div className="flex justify-between text-[0.8125rem] text-text-sec">
+              <span>SGST ({gstPercent / 2}%)</span>
+              <span className="tabular-nums">{money.format(gst - Math.round(gst / 2))}</span>
             </div>
             <div className="flex justify-between border-t border-border pt-2 text-[1.25rem] font-black text-text">
               <span>Total</span>
