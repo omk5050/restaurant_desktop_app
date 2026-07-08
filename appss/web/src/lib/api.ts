@@ -7,11 +7,20 @@ export const api = axios.create({
   timeout: 15000,
 })
 
-// Inject auth token if available
+// Inject auth token and adminId if available
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("pos_token")
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  
+  // Impersonate adminId if selected_admin_id exists
+  const selectedAdminId = localStorage.getItem("selected_admin_id")
+  if (selectedAdminId) {
+    config.params = {
+      ...config.params,
+      adminId: selectedAdminId,
+    }
   }
   return config
 })

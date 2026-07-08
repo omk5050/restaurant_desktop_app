@@ -19,6 +19,7 @@ import { CategoryPage }         from "@/pages/admin/CategoryPage"
 import { TablesManagementPage } from "@/pages/admin/TablesManagementPage"
 import { SettingsPage }         from "@/pages/admin/SettingsPage"
 import { LoginPage }            from "@/pages/LoginPage"
+import { SuperAdminPage }        from "@/pages/SuperAdminPage"
 
 // ── Helpers ────────────────────────────────────────────────────────
 const FULLSCREEN_SCREENS: Screen[] = ["tableOrder", "payment", "invoice"]
@@ -40,7 +41,7 @@ const AppShell = ({
 }) => {
   if (fullscreen) return <>{children}</>
   return (
-    <div className="flex h-screen overflow-hidden bg-bg">
+    <div className="flex h-full overflow-hidden bg-bg">
       <div className="hidden lg:flex">
         <Sidebar activeItem={activeItem} onNavigate={onNavigate} restaurantName={restaurantName} />
       </div>
@@ -57,6 +58,9 @@ const AppShell = ({
 // ── Root ───────────────────────────────────────────────────────────
 export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userRole,        setUserRole]        = useState<string | null>(null)
+  const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null)
+
   const [screen,        setScreen]        = useState<Screen>("tables")
   const [selectedTable, setSelectedTable] = useState<DiningTable | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash")
@@ -65,10 +69,13 @@ export function App() {
 
   const cart = useCart()
 
-  // Clear auth token on load/reload to force logout
+  // Clear auth token and impersonation on load/reload to force logout
   useEffect(() => {
     localStorage.removeItem("pos_token")
     sessionStorage.removeItem("pos_token")
+    localStorage.removeItem("selected_admin_id")
+    setSelectedAdminId(null)
+    setUserRole(null)
     setIsAuthenticated(false)
   }, [])
 
@@ -87,14 +94,36 @@ export function App() {
     }
   }, [isAuthenticated])
 
-  const handleLoginSuccess = (token: string, _role: string) => {
+  const handleLoginSuccess = (token: string, role: string) => {
     localStorage.setItem("pos_token", token)
+    localStorage.removeItem("selected_admin_id")
+    setSelectedAdminId(null)
+    setUserRole(role)
     setIsAuthenticated(true)
   }
 
   const handleLogout = () => {
     localStorage.removeItem("pos_token")
+    localStorage.removeItem("selected_admin_id")
+    setSelectedAdminId(null)
+    setUserRole(null)
     setIsAuthenticated(false)
+  }
+
+  const handleImpersonate = (adminId: string) => {
+    localStorage.setItem("selected_admin_id", adminId)
+    setSelectedAdminId(adminId)
+    // Refetch settings/tables/orders for the impersonated admin
+    fetchSettings()
+    useOrderStore.getState().fetchOrders()
+  }
+
+  const handleExitImpersonation = () => {
+    localStorage.removeItem("selected_admin_id")
+    setSelectedAdminId(null)
+    // Refetch settings/tables/orders for the primary admin/clean state
+    fetchSettings()
+    useOrderStore.getState().fetchOrders()
   }
 
   // GST and service charge from settings (fallback to 5% GST)
@@ -113,11 +142,6 @@ export function App() {
   const receiptFooter  = settings?.receiptFooter  || "Thank you for dining with us!"
 
   const navigate = (id: SidebarItemId) => setScreen(id as Screen)
-
-  // Fetch initial orders
-  useEffect(() => {
-    useOrderStore.getState().fetchOrders()
-  }, [])
 
   const openTable = (table: DiningTable) => {
     setSelectedTable(table)
@@ -148,75 +172,98 @@ export function App() {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />
   }
 
+  if (userRole === "super-admin" && !selectedAdminId) {
+    return <SuperAdminPage onLogout={handleLogout} onImpersonate={handleImpersonate} />
+  }
+
+  const showImpersonationBanner = userRole === "super-admin" && selectedAdminId
+
   return (
-    <AppShell
-      activeItem={getActiveItem(screen)}
-      fullscreen={fullscreen}
-      onNavigate={navigate}
-      restaurantName={restaurantName}
-    >
-      {/* ── POS ─────────────────────────────────────────── */}
-      {screen === "tables"  && (
-        <TablesPage
-          onOpenTable={openTable}
+    <div className="flex flex-col h-screen overflow-hidden bg-bg">
+      {showImpersonationBanner && (
+        <div className="flex h-11 shrink-0 items-center justify-between bg-[#1e293b] border-b border-[#334155] px-6 text-white z-50">
+          <span className="text-sm font-bold text-[#f8fafc]">
+            Viewing Admin&apos;s Restaurant Portal
+          </span>
+          <button
+            onClick={handleExitImpersonation}
+            className="bg-[#f59e0b] hover:bg-[#d97706] text-[#1e293b] text-xs font-extrabold px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Return to Super Admin Panel
+          </button>
+        </div>
+      )}
+      <div className="flex-1 overflow-hidden">
+        <AppShell
+          activeItem={getActiveItem(screen)}
+          fullscreen={fullscreen}
+          onNavigate={navigate}
           restaurantName={restaurantName}
-          tagline={tagline}
-        />
-      )}
-      {screen === "menu"    && <MenuPage />}
-      {screen === "orders"  && <OrdersPage />}
-      {screen === "reports" && <ReportsPage />}
+        >
+          {/* ── POS ─────────────────────────────────────────── */}
+          {screen === "tables"  && (
+            <TablesPage
+              onOpenTable={openTable}
+              restaurantName={restaurantName}
+              tagline={tagline}
+            />
+          )}
+          {screen === "menu"    && <MenuPage />}
+          {screen === "orders"  && <OrdersPage />}
+          {screen === "reports" && <ReportsPage />}
 
-      {screen === "tableOrder" && selectedTable && (
-        <TableOrderPage
-          cart={cart}
-          customerName={customerName}
-          kitchenNote={kitchenNote}
-          onBack={() => setScreen("tables")}
-          onCustomerName={setCustomerName}
-          onKitchenNote={setKitchenNote}
-          onPayment={() => setScreen("payment")}
-          selectedTable={selectedTable}
-        />
-      )}
-      {screen === "payment" && selectedTable && (
-        <PaymentPage
-          cartItems={cart.cartItems}
-          gst={gst}
-          onBack={() => setScreen("tableOrder")}
-          onComplete={(method) => {
-            setPaymentMethod(method)
-            setScreen("invoice")
-          }}
-          selectedTable={selectedTable}
-          subtotal={cart.subtotal}
-          total={total}
-        />
-      )}
-      {screen === "invoice" && selectedTable && (
-        <InvoicePage
-          cartItems={cart.cartItems}
-          customerName={customerName}
-          gst={gst}
-          serviceCharge={serviceCharge}
-          onBackToTables={() => setScreen("tables")}
-          paymentMethod={paymentMethod}
-          selectedTable={selectedTable}
-          subtotal={cart.subtotal}
-          total={total}
-          restaurantName={restaurantName}
-          tagline={tagline}
-          address={address}
-          phone={phone}
-          gstNumber={gstNumber}
-          receiptFooter={receiptFooter}
-        />
-      )}
+          {screen === "tableOrder" && selectedTable && (
+            <TableOrderPage
+              cart={cart}
+              customerName={customerName}
+              kitchenNote={kitchenNote}
+              onBack={() => setScreen("tables")}
+              onCustomerName={setCustomerName}
+              onKitchenNote={setKitchenNote}
+              onPayment={() => setScreen("payment")}
+              selectedTable={selectedTable}
+            />
+          )}
+          {screen === "payment" && selectedTable && (
+            <PaymentPage
+              cartItems={cart.cartItems}
+              gst={gst}
+              onBack={() => setScreen("tableOrder")}
+              onComplete={(method) => {
+                setPaymentMethod(method)
+                setScreen("invoice")
+              }}
+              selectedTable={selectedTable}
+              subtotal={cart.subtotal}
+              total={total}
+            />
+          )}
+          {screen === "invoice" && selectedTable && (
+            <InvoicePage
+              cartItems={cart.cartItems}
+              customerName={customerName}
+              gst={gst}
+              serviceCharge={serviceCharge}
+              onBackToTables={() => setScreen("tables")}
+              paymentMethod={paymentMethod}
+              selectedTable={selectedTable}
+              subtotal={cart.subtotal}
+              total={total}
+              restaurantName={restaurantName}
+              tagline={tagline}
+              address={address}
+              phone={phone}
+              gstNumber={gstNumber}
+              receiptFooter={receiptFooter}
+            />
+          )}
 
-      {/* ── Admin ────────────────────────────────────────── */}
-      {screen === "categories"   && <CategoryPage />}
-      {screen === "tables-admin" && <TablesManagementPage />}
-      {screen === "settings"     && <SettingsPage onLogout={handleLogout} />}
-    </AppShell>
+          {/* ── Admin ────────────────────────────────────────── */}
+          {screen === "categories"   && <CategoryPage />}
+          {screen === "tables-admin" && <TablesManagementPage />}
+          {screen === "settings"     && <SettingsPage onLogout={handleLogout} />}
+        </AppShell>
+      </div>
+    </div>
   )
 }

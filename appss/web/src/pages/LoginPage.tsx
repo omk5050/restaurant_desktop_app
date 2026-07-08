@@ -10,7 +10,7 @@ interface LoginPageProps {
 export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState("admin")
+  const role = "admin"
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -54,29 +54,6 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
         )}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[0.6875rem] font-bold uppercase tracking-wider text-text-sec">Role</label>
-            <div className="flex rounded-xl border border-border bg-panel p-1">
-              <button
-                type="button"
-                onClick={() => setRole("admin")}
-                className={`flex-1 rounded-lg py-2 text-[0.8125rem] font-bold transition-all duration-150 ${
-                  role === "admin" ? "bg-primary text-white shadow-sm" : "text-text-sec hover:text-text"
-                }`}
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole("super-admin")}
-                className={`flex-1 rounded-lg py-2 text-[0.8125rem] font-bold transition-all duration-150 ${
-                  role === "super-admin" ? "bg-primary text-white shadow-sm" : "text-text-sec hover:text-text"
-                }`}
-              >
-                Superadmin
-              </button>
-            </div>
-          </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[0.6875rem] font-bold uppercase tracking-wider text-text-sec">Email</label>
