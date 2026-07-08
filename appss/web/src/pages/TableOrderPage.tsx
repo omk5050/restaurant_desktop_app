@@ -18,7 +18,6 @@ import { useMenuStore } from "@/store/menuStore"
 import { useSettingsStore } from "@/store/settingsStore"
 import { money } from "@/utils/currency"
 import { useCurrency } from "@/hooks/useCurrency"
-import { useDateTime } from "@/hooks/useDateTime"
 
 type PosCategory = string
 type VegFilter = "all" | "veg" | "nonveg"
@@ -265,12 +264,28 @@ function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
   items:       Array<{ name: string; quantity: number; kotSent?: boolean }>
   kitchenNote: string
 }) {
-  const { formatDateTime } = useDateTime()
+  const settings = useSettingsStore(s => s.settings)
+  const tz = settings?.timezone ?? "Asia/Kolkata"
   const now = new Date()
-  const dateStr = formatDateTime(now)
-  const displayOrderNo = orderNo.startsWith("#") ? orderNo : `#${orderNo}`
 
-  const DASH = "- - - - - - - - - - - - - - - - - - - - - - -"
+  // Format date as: 8/7/2026, 9:16:15 pm
+  const dateParts = now.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    timeZone: tz
+  })
+  const timeParts = now.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone: tz
+  }).toLowerCase()
+  const dateStr = `${dateParts}, ${timeParts}`
+
+  const displayOrderNo = orderNo.startsWith("#") ? orderNo : `#${orderNo}`
+  const DASH = "-----------------------------------------"
 
   return (
     <div
@@ -301,25 +316,25 @@ function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
       `}</style>
 
       {/* Title */}
-      <div style={{ textAlign: "center", fontWeight: 900, fontSize: "16px", letterSpacing: "0.5px", marginBottom: "6px" }}>
+      <div style={{ textAlign: "center", fontWeight: 900, fontSize: "17px", letterSpacing: "0.5px", marginBottom: "6px" }}>
         KITCHEN ORDER (KOT)
       </div>
 
       {/* Separator */}
-      <div style={{ fontSize: "11px", color: "#000", marginBottom: "6px" }}>{DASH}</div>
+      <div style={{ fontSize: "11px", color: "#000", marginBottom: "6px", fontWeight: 900 }}>{DASH}</div>
 
       {/* Meta */}
-      <div style={{ fontWeight: 900, fontSize: "13px", lineHeight: "1.7" }}>
+      <div style={{ fontWeight: 900, fontSize: "14px", lineHeight: "1.7" }}>
         <div>TABLE/ORDER: {tableName}</div>
         <div>ORDER NO : {displayOrderNo}</div>
         <div>DATE : {dateStr}</div>
       </div>
 
       {/* Separator */}
-      <div style={{ fontSize: "11px", color: "#000", margin: "6px 0" }}>{DASH}</div>
+      <div style={{ fontSize: "11px", color: "#000", margin: "6px 0", fontWeight: 900 }}>{DASH}</div>
 
       {/* Items — name left, xN right */}
-      <div style={{ fontSize: "15px", fontWeight: 700, lineHeight: "1.8" }}>
+      <div style={{ fontSize: "17px", fontWeight: 900, lineHeight: "1.8", letterSpacing: "-0.5px" }}>
         {items.map((item, idx) => (
           <div
             key={idx}
@@ -329,36 +344,36 @@ function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
               alignItems: "baseline",
             }}
           >
-            <span style={{ fontWeight: 700 }}>{item.name}</span>
-            <span style={{ fontWeight: 900, marginLeft: "12px", whiteSpace: "nowrap" }}>x{item.quantity}</span>
+            <span>{item.name}</span>
+            <span style={{ marginLeft: "12px", whiteSpace: "nowrap" }}>x{item.quantity}</span>
           </div>
         ))}
       </div>
 
       {/* Separator */}
-      <div style={{ fontSize: "11px", color: "#000", margin: "6px 0" }}>{DASH}</div>
+      <div style={{ fontSize: "11px", color: "#000", margin: "6px 0", fontWeight: 900 }}>{DASH}</div>
 
       {/* Kitchen note in a box */}
       {kitchenNote && (
         <>
-          <div style={{ fontWeight: 900, fontSize: "12px", marginBottom: "4px" }}>⚠ KITCHEN NOTE:</div>
+          <div style={{ fontWeight: 900, fontSize: "13px", marginBottom: "4px" }}>⚠ KITCHEN NOTE:</div>
           <div style={{
-            border: "1.5px solid #000",
-            borderRadius: "4px",
-            padding: "5px 8px",
-            fontSize: "13px",
-            fontWeight: 700,
-            minHeight: "32px",
+            border: "2px solid #000",
+            borderRadius: "6px",
+            padding: "6px 12px",
+            fontSize: "15px",
+            fontWeight: 900,
+            minHeight: "36px",
             marginBottom: "6px",
           }}>
             {kitchenNote}
           </div>
-          <div style={{ fontSize: "11px", color: "#000", marginBottom: "6px" }}>{DASH}</div>
+          <div style={{ fontSize: "11px", color: "#000", marginBottom: "6px", fontWeight: 900 }}>{DASH}</div>
         </>
       )}
 
       {/* Footer */}
-      <div style={{ textAlign: "center", fontWeight: 900, fontSize: "14px" }}>
+      <div style={{ textAlign: "center", fontWeight: 900, fontSize: "15px", marginTop: "4px" }}>
         Kitchen Copy
       </div>
     </div>
@@ -701,53 +716,85 @@ function ItemRemovalModal({ itemName, onConfirm, onSkip, onClose }: {
   const [reason, setReason] = useState("")
   return (
     <Modal onClose={onClose}>
-      <div className="w-full max-w-[22rem] rounded-3xl border border-border bg-card px-6 pb-6 pt-7 shadow-modal text-center">
-        {/* Scissors icon */}
-        <div className="mb-4 flex justify-center">
-          <span style={{ fontSize: "2.5rem", lineHeight: 1 }}>✂️</span>
+      <div className="w-full max-w-[22.5rem] rounded-[2rem] border border-border bg-card px-8 pb-8 pt-7 shadow-modal text-center relative overflow-hidden">
+        {/* Close Button on top-right for cancelling / closing */}
+        <button onClick={onClose} className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full hover:bg-panel text-text-sec/60">
+          <X size={18} />
+        </button>
+
+        {/* Scissors icon from screenshot */}
+        <div className="mb-3.5 flex justify-center">
+          <svg width="68" height="68" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="scissors-handle-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#EC4899" />
+                <stop offset="100%" stopColor="#EF4444" />
+              </linearGradient>
+              <linearGradient id="scissors-blade-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#C084FC" />
+                <stop offset="100%" stopColor="#818CF8" />
+              </linearGradient>
+            </defs>
+            {/* Left handle */}
+            <circle cx="21" cy="20" r="7.5" stroke="url(#scissors-handle-grad)" strokeWidth="5" fill="none" />
+            {/* Right handle */}
+            <circle cx="43" cy="20" r="7.5" stroke="url(#scissors-handle-grad)" strokeWidth="5" fill="none" />
+            {/* Left blade */}
+            <path d="M21 26 L42 47" stroke="url(#scissors-blade-grad)" strokeWidth="4.5" strokeLinecap="round" />
+            {/* Right blade */}
+            <path d="M43 26 L22 47" stroke="url(#scissors-blade-grad)" strokeWidth="4.5" strokeLinecap="round" />
+            {/* Joint */}
+            <circle cx="32" cy="32.5" r="3.5" fill="#EF4444" />
+          </svg>
         </div>
 
         {/* Title */}
-        <h2 className="text-[1.375rem] font-black" style={{ color: "#F97316" }}>Item Removed</h2>
+        <h2 className="text-[1.85rem] font-bold tracking-tight text-[#f97316]">
+          Item Removed
+        </h2>
 
-        {/* Description */}
-        <p className="mt-2 text-[0.875rem] text-text-sec leading-snug">
-          You removed:{" "}
-          <span className="font-bold" style={{ color: "#EF4444" }}>{itemName}</span>
+        {/* Subtitle */}
+        <div className="mt-2.5 text-[0.875rem] text-text-sec/80 font-medium leading-relaxed">
+          You removed: <span className="font-extrabold text-[#EF4444]">{itemName}</span>
           <br />
           Please provide a reason for the kitchen.
-        </p>
+        </div>
 
-        {/* Reason input */}
+        {/* Input area */}
         <div className="mt-5 text-left">
-          <label className="mb-1.5 block text-[0.75rem] font-bold text-text-sec">Reason for removal</label>
+          <label className="text-[0.725rem] font-extrabold text-text-sec uppercase tracking-wider block mb-1">
+            Reason for removal
+          </label>
           <input
             autoFocus
             type="text"
             value={reason}
             onChange={e => setReason(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && reason.trim()) { onConfirm(reason.trim()); onClose() } }}
-            placeholder="e.g. Customer changed mind, Out of stock…"
-            className="h-12 w-full rounded-2xl border border-primary/60 bg-panel px-4 text-[0.875rem] text-text outline-none transition-[border-color] focus:border-primary"
+            placeholder="e.g. Customer changed mind, Out of stock..."
+            className="w-full h-12 px-4 rounded-xl border border-black text-[0.875rem] text-text bg-white outline-none focus:ring-1 focus:ring-primary font-medium"
           />
         </div>
 
-        {/* Send KOT button */}
-        <button
-          onClick={() => { if (reason.trim()) { onConfirm(reason.trim()); onClose() } else { onConfirm(""); onClose() } }}
-          className="mt-4 flex h-12 w-full items-center justify-center rounded-2xl font-bold text-white transition-[background-color,transform] duration-[140ms] hover:opacity-90 active:scale-[0.98]"
-          style={{ background: "linear-gradient(135deg, #F97316 0%, #ea580c 100%)", fontSize: "0.9375rem" }}
-        >
-          Send KOT
-        </button>
-
-        {/* Skip Reason button */}
-        <button
-          onClick={() => { onSkip(); onClose() }}
-          className="mt-2.5 flex h-11 w-full items-center justify-center rounded-2xl bg-panel text-[0.9375rem] font-bold text-text-sec transition-[background-color] hover:bg-border/40"
-        >
-          Skip Reason
-        </button>
+        {/* Buttons */}
+        <div className="mt-5 flex flex-col gap-2.5">
+          <button
+            onClick={() => {
+              onConfirm(reason.trim() || "No reason provided")
+            }}
+            className="w-full h-12 rounded-2xl text-white font-extrabold text-[0.9375rem] transition hover:opacity-90 flex items-center justify-center"
+            style={{ backgroundColor: "#F97316" }}
+          >
+            Send KOT
+          </button>
+          <button
+            onClick={() => {
+              onSkip()
+            }}
+            className="w-full h-12 rounded-2xl text-text-sec font-extrabold text-[0.9375rem] transition bg-[#f1f5f9] hover:bg-slate-200 flex items-center justify-center"
+          >
+            Skip Reason
+          </button>
+        </div>
       </div>
     </Modal>
   )
