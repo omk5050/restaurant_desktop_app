@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef, type ReactNode } from "react"
 import {
-  CalendarDays, CreditCard, ReceiptText, Search, ShoppingBag, Users, Utensils,
+  CalendarDays, CreditCard, ReceiptText, Search, Utensils,
 } from "lucide-react"
 import { Badge, Button, Card } from "@/components/ui"
 import { Header } from "@/components/layout"
@@ -26,9 +26,9 @@ const statusMeta: Record<TableStatus, { label: string; border: string; bg: strin
 }
 
 const sectionMeta = [
-  { icon: Utensils,    name: "Restaurant",     tone: "bg-primary-light text-primary" },
-  { icon: Users,       name: "Family Section", tone: "bg-green-light text-green" },
-  { icon: ShoppingBag, name: "Takeaway",       tone: "bg-purple-light text-purple" },
+  { emoji: "🍽️", name: "Restaurant",     tone: "bg-primary-light text-primary" },
+  { emoji: "👨‍👩‍👧", name: "Family Section", tone: "bg-green-light text-green" },
+  { emoji: "🛍️", name: "Takeaway",       tone: "bg-purple-light text-purple" },
 ] as const
 
 const STATUS_FILTERS: Array<{ value: TableStatus | "all"; label: string }> = [
@@ -53,7 +53,6 @@ const HeroPanel = ({ badge, kicker, title, value, valueLabel }: {
           <>
             <p className="mt-6 text-[0.6875rem] text-white/60">{valueLabel}</p>
             <p className="mt-0.5 text-[1.875rem] font-black leading-none tabular-nums">{value}</p>
-            <p className="mt-1.5 text-[0.75rem] font-bold text-green">↑ 25% vs yesterday</p>
           </>
         )}
         {!valueLabel && <p className="mt-2 max-w-md text-[0.875rem] font-black">{value}</p>}
@@ -65,6 +64,7 @@ const HeroPanel = ({ badge, kicker, title, value, valueLabel }: {
     </div>
   </section>
 )
+
 
 const MetricCard = ({ icon, label, tone, value }: {
   icon: ReactNode; label: string; tone: string; value: string
@@ -121,10 +121,13 @@ const TableRowButton = ({
 
 // ── Main component ──────────────────────────────────────────────────
 interface TablesPageProps {
-  onOpenTable: (table: DiningTable) => void
+  onOpenTable:      (table: DiningTable) => void
+  restaurantName?:  string
+  tagline?:         string
+  todayRevenue?:    number
 }
 
-export function TablesPage({ onOpenTable }: TablesPageProps) {
+export function TablesPage({ onOpenTable, restaurantName = "Hotel Grand", tagline = "Dining Room Live", todayRevenue = 0 }: TablesPageProps) {
   const [search,        setSearch]        = useState("")
   const [statusFilter,  setStatusFilter]  = useState<TableStatus | "all">("all")
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
@@ -196,9 +199,9 @@ export function TablesPage({ onOpenTable }: TablesPageProps) {
         {/* Hero */}
         <HeroPanel
           badge={`${counts.active + counts.bill} orders`}
-          kicker="Dining Room Live"
-          title="Hotel Grand"
-          value={money.format(0)}
+          kicker={tagline}
+          title={restaurantName}
+          value={money.format(todayRevenue)}
           valueLabel="Today Sales"
         />
 
@@ -299,14 +302,13 @@ export function TablesPage({ onOpenTable }: TablesPageProps) {
         ) : (
           <section className="mt-3 grid gap-3 xl:grid-cols-3">
             {grouped.map(section => {
-              const Icon = section.icon
               if (section.tables.length === 0) return null
               return (
                 <Card className="p-4" key={section.name}>
                   {/* Section header */}
                   <div className="flex items-center gap-2.5">
-                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", section.tone)}>
-                      <Icon size={15} strokeWidth={2.5} />
+                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-[1rem]", section.tone)}>
+                      {section.emoji}
                     </span>
                     <div>
                       <h3 className="text-[0.875rem] font-black leading-tight text-text">{section.name}</h3>

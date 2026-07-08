@@ -4,6 +4,7 @@ import { type SidebarItemId } from "@/components/layout"
 import type { PaymentMethod, Screen } from "@/mocks/pos"
 import { useCart } from "@/hooks/useCart"
 import { useOrderStore } from "@/store/orderStore"
+import { useSettingsStore } from "@/store/settingsStore"
 // POS pages
 import { TablesPage }     from "@/pages/TablesPage"
 import type { DiningTable } from "@/pages/TablesPage"
@@ -28,18 +29,19 @@ const getActiveItem = (screen: Screen): SidebarItemId => {
 
 // ── Layout wrapper ─────────────────────────────────────────────────
 const AppShell = ({
-  activeItem, children, fullscreen, onNavigate,
+  activeItem, children, fullscreen, onNavigate, restaurantName,
 }: {
-  activeItem: SidebarItemId
-  children:   ReactNode
-  fullscreen: boolean
-  onNavigate: (id: SidebarItemId) => void
+  activeItem:      SidebarItemId
+  children:        ReactNode
+  fullscreen:      boolean
+  onNavigate:      (id: SidebarItemId) => void
+  restaurantName?: string
 }) => {
   if (fullscreen) return <>{children}</>
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
       <div className="hidden lg:flex">
-        <Sidebar activeItem={activeItem} onNavigate={onNavigate} />
+        <Sidebar activeItem={activeItem} onNavigate={onNavigate} restaurantName={restaurantName} />
       </div>
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto">{children}</div>
@@ -59,9 +61,26 @@ export function App() {
   const [customerName,  setCustomerName]  = useState("")
   const [kitchenNote,   setKitchenNote]   = useState("")
 
-  const cart  = useCart()
-  const gst   = Math.round(cart.subtotal * 0.05)   // 5% GST
-  const total = cart.subtotal + gst
+  const cart = useCart()
+
+  // Load settings once at root level
+  const { settings, fetchSettings } = useSettingsStore()
+  useEffect(() => { fetchSettings() }, [fetchSettings])
+
+  // GST and service charge from settings (fallback to 5% GST)
+  const gstPercent            = settings?.gstPercent            ?? 5
+  const serviceChargePercent  = settings?.serviceChargePercent  ?? 0
+  const gst            = Math.round(cart.subtotal * gstPercent / 100)
+  const serviceCharge  = Math.round(cart.subtotal * serviceChargePercent / 100)
+  const total          = cart.subtotal + gst + serviceCharge
+
+  // Settings-driven display values
+  const restaurantName = settings?.restaurantName || "Hotel Grand"
+  const tagline        = "Restaurant & Family Dining"
+  const address        = settings?.address        || ""
+  const phone          = settings?.phone          || ""
+  const gstNumber      = settings?.gstNumber      || ""
+  const receiptFooter  = settings?.receiptFooter  || "Thank you for dining with us!"
 
   const navigate = (id: SidebarItemId) => setScreen(id as Screen)
 
@@ -100,9 +119,16 @@ export function App() {
       activeItem={getActiveItem(screen)}
       fullscreen={fullscreen}
       onNavigate={navigate}
+      restaurantName={restaurantName}
     >
       {/* ── POS ─────────────────────────────────────────── */}
-      {screen === "tables"  && <TablesPage onOpenTable={openTable} />}
+      {screen === "tables"  && (
+        <TablesPage
+          onOpenTable={openTable}
+          restaurantName={restaurantName}
+          tagline={tagline}
+        />
+      )}
       {screen === "menu"    && <MenuPage />}
       {screen === "orders"  && <OrdersPage />}
       {screen === "reports" && <ReportsPage />}
@@ -138,11 +164,18 @@ export function App() {
           cartItems={cart.cartItems}
           customerName={customerName}
           gst={gst}
+          serviceCharge={serviceCharge}
           onBackToTables={() => setScreen("tables")}
           paymentMethod={paymentMethod}
           selectedTable={selectedTable}
           subtotal={cart.subtotal}
           total={total}
+          restaurantName={restaurantName}
+          tagline={tagline}
+          address={address}
+          phone={phone}
+          gstNumber={gstNumber}
+          receiptFooter={receiptFooter}
         />
       )}
 

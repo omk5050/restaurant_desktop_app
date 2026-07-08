@@ -12,15 +12,29 @@ interface InvoicePageProps {
   cartItems:       CartItem[]
   subtotal:        number
   gst:             number
+  serviceCharge:   number
   total:           number
   paymentMethod:   PaymentMethod
   customerName:    string
   onBackToTables:  () => void
+  // Dynamic settings
+  restaurantName?: string
+  tagline?:        string
+  address?:        string
+  phone?:          string
+  gstNumber?:      string
+  receiptFooter?:  string
 }
 
 export function InvoicePage({
-  selectedTable, cartItems, subtotal, gst, total,
+  selectedTable, cartItems, subtotal, gst, serviceCharge, total,
   paymentMethod, customerName, onBackToTables,
+  restaurantName = "Hotel Grand",
+  tagline        = "Restaurant & Family Dining",
+  address        = "",
+  phone          = "",
+  gstNumber      = "",
+  receiptFooter  = "Thank you for dining with us!",
 }: InvoicePageProps) {
   const orderId  = `ORD-${Date.now().toString().slice(-6)}`
   const now      = new Date()
@@ -53,19 +67,18 @@ export function InvoicePage({
       <main className="flex flex-1 overflow-y-auto bg-bg py-6 px-4">
         <div className="mx-auto w-full max-w-[25rem]">
 
-          {/* Thermal receipt card */}
-          <Card className="overflow-hidden border border-border p-0 shadow-warm print-receipt-card print:shadow-none print:border-0 print:bg-white">
-
-
+          {/* ── Screen preview (non-print) ─── */}
+          <Card className="overflow-hidden border border-border p-0 shadow-warm print:hidden print:shadow-none">
             {/* Receipt header */}
             <div className="bg-espresso px-5 py-6 text-center text-white">
-              {/* Logo placeholder */}
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-primary shadow-warm">
                 <span className="text-[1.25rem]">🍽️</span>
               </div>
-              <h1 className="text-[1.25rem] font-black tracking-tight">Hotel Grand</h1>
-              <p className="mt-1 text-[0.6875rem] text-white/70">Restaurant & Family Dining</p>
-              <p className="mt-0.5 text-[0.625rem] text-white/50">GST: 29ABCDE1234F1Z5</p>
+              <h1 className="text-[1.25rem] font-black tracking-tight">{restaurantName}</h1>
+              <p className="mt-1 text-[0.6875rem] text-white/70">{tagline}</p>
+              {address && <p className="mt-0.5 text-[0.625rem] text-white/50">{address}</p>}
+              {phone && <p className="mt-0.5 text-[0.625rem] text-white/50">{phone}</p>}
+              {gstNumber && <p className="mt-0.5 text-[0.625rem] text-white/50">GST: {gstNumber}</p>}
             </div>
 
             {/* Meta */}
@@ -123,33 +136,115 @@ export function InvoicePage({
                 <span>Subtotal</span>
                 <span className="tabular-nums">{money.format(subtotal)}</span>
               </div>
-              <div className="flex justify-between text-[0.75rem] text-text-sec">
-                <span>CGST (7.5%)</span>
-                <span className="tabular-nums">{money.format(Math.round(gst / 2))}</span>
-              </div>
-              <div className="flex justify-between text-[0.75rem] text-text-sec">
-                <span>SGST (7.5%)</span>
-                <span className="tabular-nums">{money.format(Math.round(gst / 2))}</span>
-              </div>
+              {gst > 0 && (
+                <>
+                  <div className="flex justify-between text-[0.75rem] text-text-sec">
+                    <span>CGST</span>
+                    <span className="tabular-nums">{money.format(Math.round(gst / 2))}</span>
+                  </div>
+                  <div className="flex justify-between text-[0.75rem] text-text-sec">
+                    <span>SGST</span>
+                    <span className="tabular-nums">{money.format(Math.round(gst / 2))}</span>
+                  </div>
+                </>
+              )}
+              {serviceCharge > 0 && (
+                <div className="flex justify-between text-[0.75rem] text-text-sec">
+                  <span>Service Charge</span>
+                  <span className="tabular-nums">{money.format(serviceCharge)}</span>
+                </div>
+              )}
               <div className="mt-1 flex justify-between border-t border-border pt-2 text-[1.125rem] font-black text-text">
                 <span>Total</span>
                 <span className="tabular-nums text-primary">{money.format(total)}</span>
               </div>
             </div>
 
-            {/* QR + footer */}
+            {/* Footer */}
             <div className="flex flex-col items-center border-t border-dashed border-border px-4 pb-6 pt-4">
-              {/* QR Placeholder */}
-              <div className="flex size-24 items-center justify-center rounded-xl border border-dashed border-border bg-panel">
-                <span className="text-center text-[0.5625rem] text-text-sec leading-tight">Scan to pay<br/>/ feedback</span>
-              </div>
-              <p className="mt-4 text-center text-[0.75rem] font-bold text-text">Thank you for dining with us!</p>
-              <p className="mt-0.5 text-center text-[0.625rem] text-text-sec">Hotel Grand · +91 98765 43210</p>
+              {receiptFooter.split("\n").map((line, i) => (
+                <p key={i} className="mt-1 text-center text-[0.75rem] font-bold text-text">{line}</p>
+              ))}
+              {phone && <p className="mt-0.5 text-center text-[0.625rem] text-text-sec">{restaurantName} · {phone}</p>}
               <p className="mt-4 text-center text-[0.5625rem] uppercase tracking-widest text-border">
                 — End of Bill —
               </p>
             </div>
           </Card>
+
+          {/* ── Thermal print target (hidden on screen, shown on print) ─── */}
+          <div id="thermal-receipt" className="hidden print:block" style={{
+            fontFamily: "'Courier New', Courier, monospace",
+            width: "80mm",
+            margin: "0 auto",
+            padding: "8px 6px",
+            color: "#000",
+            background: "#fff",
+          }}>
+            {/* Header */}
+            <div style={{ textAlign: "center", marginBottom: "4px" }}>
+              <div style={{ fontSize: "16px", fontWeight: 900, letterSpacing: "0.5px" }}>{restaurantName}</div>
+              {tagline && <div style={{ fontSize: "11px", fontWeight: 600 }}>{tagline}</div>}
+              {address && <div style={{ fontSize: "10px" }}>{address}</div>}
+              {phone && <div style={{ fontSize: "10px" }}>{phone}</div>}
+              {gstNumber && <div style={{ fontSize: "10px" }}>GST: {gstNumber}</div>}
+            </div>
+            <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
+
+            {/* Meta */}
+            <div style={{ fontSize: "11px", lineHeight: "1.6" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Order ID</span><span style={{ fontWeight: 700 }}>{orderId}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Date</span><span style={{ fontWeight: 700 }}>{dateStr}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Time</span><span style={{ fontWeight: 700 }}>{timeStr}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Table</span><span style={{ fontWeight: 700 }}>{selectedTable.name}</span></div>
+              {customerName && <div style={{ display: "flex", justifyContent: "space-between" }}><span>Customer</span><span style={{ fontWeight: 700 }}>{customerName}</span></div>}
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Payment</span><span style={{ fontWeight: 700, textTransform: "capitalize" }}>{paymentMethod}</span></div>
+            </div>
+            <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
+
+            {/* Items */}
+            <div style={{ fontSize: "11px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, marginBottom: "3px" }}>
+                <span style={{ flex: 1 }}>ITEM</span>
+                <span style={{ width: "30px", textAlign: "center" }}>QTY</span>
+                <span style={{ width: "60px", textAlign: "right" }}>AMT</span>
+              </div>
+              {cartItems.map(item => (
+                <div key={item.id} style={{ display: "flex", justifyContent: "space-between", lineHeight: "1.5" }}>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "4px" }}>{item.name}</span>
+                  <span style={{ width: "30px", textAlign: "center" }}>{item.quantity}</span>
+                  <span style={{ width: "60px", textAlign: "right", fontWeight: 700 }}>{money.format(item.price * item.quantity)}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
+
+            {/* Totals */}
+            <div style={{ fontSize: "11px", lineHeight: "1.7" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Subtotal</span><span>{money.format(subtotal)}</span></div>
+              {gst > 0 && <>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span>CGST</span><span>{money.format(Math.round(gst / 2))}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span>SGST</span><span>{money.format(Math.round(gst / 2))}</span></div>
+              </>}
+              {serviceCharge > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Service Charge</span><span>{money.format(serviceCharge)}</span></div>
+              )}
+            </div>
+            <div style={{ borderTop: "1px solid #000", margin: "4px 0" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 900 }}>
+              <span>TOTAL</span>
+              <span>{money.format(total)}</span>
+            </div>
+            <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
+
+            {/* Footer */}
+            <div style={{ textAlign: "center", fontSize: "11px", marginTop: "6px" }}>
+              {receiptFooter.split("\n").map((line, i) => (
+                <div key={i} style={{ fontWeight: 600 }}>{line}</div>
+              ))}
+              <div style={{ marginTop: "8px", fontSize: "9px", letterSpacing: "1px" }}>*** END OF BILL ***</div>
+            </div>
+          </div>
 
           {/* Action buttons (hidden when printing) */}
           <div className="mt-5 flex gap-3 print:hidden">

@@ -573,11 +573,13 @@ app.post("/api/menu/upload-image", upload.single("image"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded." });
 
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        { folder: "restaurant_menu", resource_type: "image" },
-        (error, result) => (error ? reject(error) : resolve(result))
-      )(req.file.buffer);
+    // Convert buffer to base64 data URI — works reliably without stream pipes
+    const b64 = req.file.buffer.toString("base64");
+    const dataUri = `data:${req.file.mimetype};base64,${b64}`;
+
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: "restaurant_menu",
+      resource_type: "image",
     });
 
     res.json({ url: result.secure_url });

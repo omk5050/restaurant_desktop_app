@@ -23,7 +23,7 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   </div>
 )
 
-const BLANK = { name: "", color: "#F97316", sortOrder: 1, active: true, itemCount: 0 }
+const BLANK = { name: "", color: "#F97316", sortOrder: 1, active: true, itemCount: 0, icon: "🍽️" }
 
 const StatTile = ({ label, value, icon: Icon, tone = "orange" }: { label: string; value: string | number; icon: any; tone?: "orange" | "green" | "gray" | "blue" }) => {
   const tones = {
@@ -66,11 +66,11 @@ export function CategoryPage() {
   const filteredCats = useMemo(() => cats.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => a.sortOrder - b.sortOrder), [cats, search])
 
   const openAdd = () => { setForm({ ...BLANK, sortOrder: cats.length + 1 }); setAddOpen(true) }
-  const openEdit = (c: ApiCategory) => { setEditCat(c); setForm({ name: c.name, color: c.color, sortOrder: c.sortOrder, active: c.active, itemCount: 0 }) }
+  const openEdit = (c: ApiCategory) => { setEditCat(c); setForm({ name: c.name, color: c.color, icon: c.icon || "🍽️", sortOrder: c.sortOrder, active: c.active, itemCount: 0 }) }
   const closeAll = () => { setAddOpen(false); setEditCat(null); setDeleteId(null) }
 
-  const handleSaveNew = async () => { if (!form.name.trim()) return; await addCategory({ name: form.name, color: form.color, sortOrder: form.sortOrder, active: form.active }); closeAll() }
-  const handleSaveEdit = async () => { if (!editCat || !form.name.trim()) return; await updateCategory(editCat.id, { name: form.name, color: form.color, sortOrder: form.sortOrder, active: form.active }); closeAll() }
+  const handleSaveNew = async () => { if (!form.name.trim()) return; await addCategory({ name: form.name, color: form.color, icon: form.icon || "🍽️", sortOrder: form.sortOrder, active: form.active }); closeAll() }
+  const handleSaveEdit = async () => { if (!editCat || !form.name.trim()) return; await updateCategory(editCat.id, { name: form.name, color: form.color, icon: form.icon || "🍽️", sortOrder: form.sortOrder, active: form.active }); closeAll() }
   const handleDelete = async () => { if (!deleteId) return; await deleteCategory(deleteId); setDeleteId(null) }
   const toggleActive = async (cat: ApiCategory) => { await updateCategory(cat.id, { active: !cat.active }) }
 
@@ -88,6 +88,19 @@ export function CategoryPage() {
               onClick={() => setForm(p => ({ ...p, color }))}
             />
           ))}
+        </div>
+      </Field>
+      <Field label="Emoji Icon">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-xl border border-border bg-panel text-[1.5rem]">
+            {form.icon || "🍽️"}
+          </span>
+          <Input
+            value={form.icon}
+            onChange={e => setForm(p => ({ ...p, icon: e.target.value }))}
+            placeholder="Paste an emoji, e.g. 🍛"
+            className="h-10 rounded-xl text-[0.8125rem] flex-1"
+          />
         </div>
       </Field>
       <div className="grid grid-cols-2 gap-4">

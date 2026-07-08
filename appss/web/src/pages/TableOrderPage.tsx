@@ -16,6 +16,7 @@ import { money } from "@/utils/currency"
 import type { UseCartReturn } from "@/hooks/useCart"
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
 import { useMenuStore } from "@/store/menuStore"
+import { useSettingsStore } from "@/store/settingsStore"
 
 type PosCategory = string
 type VegFilter = "all" | "veg" | "nonveg"
@@ -68,11 +69,12 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
 // ─────────────────────────────────────────────────────────────────────────────
 // CategorySidebar
 // ─────────────────────────────────────────────────────────────────────────────
-function CategorySidebar({ categories, active, itemCounts, onSelect }: {
-  categories:  readonly string[]
-  active:      string
-  itemCounts:  Record<string, number>
-  onSelect:    (cat: string) => void
+function CategorySidebar({ categories, active, itemCounts, apiCategories, onSelect }: {
+  categories:    readonly string[]
+  active:        string
+  itemCounts:    Record<string, number>
+  apiCategories: import("@/store/menuStore").ApiCategory[]
+  onSelect:      (cat: string) => void
 }) {
   return (
     <nav
@@ -81,9 +83,11 @@ function CategorySidebar({ categories, active, itemCounts, onSelect }: {
       style={{ scrollbarWidth: "none" }}
     >
       {categories.map(cat => {
+        const category = apiCategories.find(c => c.name === cat)
+        const emoji    = category?.icon
+        const Icon     = CATEGORY_ICON_MAP[cat] ?? Utensils
         const isActive = cat === active
         const count    = itemCounts[cat] ?? 0
-        const Icon     = CATEGORY_ICON_MAP[cat] ?? Utensils
 
         return (
           <button
@@ -118,11 +122,17 @@ function CategorySidebar({ categories, active, itemCounts, onSelect }: {
                 {count}
               </span>
             )}
-            <Icon
-              size={24}
-              strokeWidth={isActive ? 2.25 : 1.75}
-              className={cn("shrink-0", isActive ? "text-white" : "text-text")}
-            />
+            {emoji ? (
+              <span className="text-[1.5rem] shrink-0 leading-none" aria-hidden="true">
+                {emoji}
+              </span>
+            ) : (
+              <Icon
+                size={24}
+                strokeWidth={isActive ? 2.25 : 1.75}
+                className={cn("shrink-0", isActive ? "text-white" : "text-text")}
+              />
+            )}
             <span className="line-clamp-2 w-full px-1 text-[0.6875rem] font-bold leading-tight tracking-tight">
               {cat}
             </span>
@@ -1075,11 +1085,13 @@ export function TableOrderPage({
   const { items: apiItems, categories: apiCategories, fetchMenu, fetchCategories } = useMenuStore()
   const { createOrder, updateOrder, fetchOrders } = useOrderStore()
   const { addEvent } = useKotStore()
+  const { settings, fetchSettings } = useSettingsStore()
 
   useEffect(() => {
     fetchMenu()
     fetchCategories()
-  }, [fetchMenu, fetchCategories])
+    fetchSettings()
+  }, [fetchMenu, fetchCategories, fetchSettings])
 
   // ── Billing state ───────────────────────────────────────────────────────
   const [billing, setBillingState] = useState<BillingState>({
@@ -1089,6 +1101,26 @@ export function TableOrderPage({
     discountType:  "percent",
     discountValue: 0,
   })
+
+  // Sync billing with settings on load
+  useEffect(() => {
+    if (!settings) return
+    const charges: BillingState["extraCharges"] = []
+    if ((settings.serviceChargePercent ?? 0) > 0) {
+      charges.push({
+        id:        "service-charge",
+        name:      "Service Charge",
+        value:     settings.serviceChargePercent,
+        isPercent: true,
+      })
+    }
+    setBillingState(prev => ({
+      ...prev,
+      gstRate:      settings.gstPercent ?? prev.gstRate,
+      gstEnabled:   (settings.gstPercent ?? 0) > 0,
+      extraCharges: charges,
+    }))
+  }, [settings])
 
   const updateBilling = useCallback((patch: Partial<BillingState>) => {
     setBillingState(prev => ({ ...prev, ...patch }))
@@ -1388,6 +1420,7 @@ export function TableOrderPage({
           categories={posCategories}
           active={activeCategory}
           itemCounts={itemCounts}
+          apiCategories={apiCategories}
           onSelect={cat => setActiveCategory(cat as PosCategory)}
         />
 

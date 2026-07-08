@@ -131,31 +131,40 @@
     overflow: visible !important;
   }
   
-  header, footer, nav, aside, button, .print-hidden, .print\:hidden {
-    display: none !important;
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
   }
 
-  div, main {
-    overflow: visible !important;
-    height: auto !important;
-    max-height: none !important;
-    box-shadow: none !important;
-    border: none !important;
-    background: transparent !important;
+  /* Show only the thermal or KOT receipt */
+  #thermal-receipt,
+  #thermal-receipt *,
+  #kot-receipt,
+  #kot-receipt * {
+    visibility: visible !important;
   }
 
-  .print-receipt-card {
-    border: none !important;
-    box-shadow: none !important;
-    margin: 0 auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 0 !important;
+  #thermal-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 0;
+    margin: 0;
+  }
+
+  #kot-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
   }
 
   @page {
     margin: 0;
-    size: portrait;
+    size: 80mm auto;
   }
 }
 
