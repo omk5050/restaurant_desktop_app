@@ -4,7 +4,7 @@ import { Eye, EyeOff, Lock, Mail, User, Phone, Building2 } from "lucide-react"
 import { api } from "@/lib/api"
 
 interface LoginPageProps {
-  onLoginSuccess: (token: string, role: string) => void
+  onLoginSuccess: (token: string, role: string, adminId: string) => void
 }
 
 export function LoginPage({ onLoginSuccess }: LoginPageProps) {
@@ -40,7 +40,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
         role: role,
       })
       if (data.success && data.token) {
-        onLoginSuccess(data.token, data.user.role)
+        onLoginSuccess(data.token, data.user.role, data.user._id)
       } else {
         setError("Invalid email or password.")
       }

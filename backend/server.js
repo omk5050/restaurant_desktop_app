@@ -322,6 +322,32 @@ async function seedDatabase() {
 const authRoutes = require("./authentucationroutes");
 app.use("/api/auth", authRoutes);
 
+// --- JWT Verification and Admin Isolation Middleware ---
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_key";
+
+app.use((req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  
+  if (!token) {
+    return next();
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ error: "Invalid or expired token." });
+    }
+    req.user = decoded;
+    
+    // For normal admins, force the query to target their authenticated user ID
+    if (decoded && decoded.role !== "super-admin") {
+      req.query.adminId = decoded.id;
+    }
+    next();
+  });
+});
+
 // ============================================================
 // 5. ROUTES — Settings
 // ============================================================

@@ -74,6 +74,7 @@ export function App() {
     localStorage.removeItem("pos_token")
     sessionStorage.removeItem("pos_token")
     localStorage.removeItem("selected_admin_id")
+    localStorage.removeItem("current_admin_id")
     setSelectedAdminId(null)
     setUserRole(null)
     setIsAuthenticated(false)
@@ -94,8 +95,9 @@ export function App() {
     }
   }, [isAuthenticated])
 
-  const handleLoginSuccess = (token: string, role: string) => {
+  const handleLoginSuccess = (token: string, role: string, adminId: string) => {
     localStorage.setItem("pos_token", token)
+    localStorage.setItem("current_admin_id", adminId)
     localStorage.removeItem("selected_admin_id")
     setSelectedAdminId(null)
     setUserRole(role)
@@ -105,6 +107,7 @@ export function App() {
   const handleLogout = () => {
     localStorage.removeItem("pos_token")
     localStorage.removeItem("selected_admin_id")
+    localStorage.removeItem("current_admin_id")
     setSelectedAdminId(null)
     setUserRole(null)
     setIsAuthenticated(false)

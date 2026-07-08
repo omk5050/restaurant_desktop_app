@@ -14,12 +14,14 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
   
-  // Impersonate adminId if selected_admin_id exists
+  // Impersonate adminId if selected_admin_id exists, else use current_admin_id
   const selectedAdminId = localStorage.getItem("selected_admin_id")
-  if (selectedAdminId) {
+  const currentAdminId = localStorage.getItem("current_admin_id")
+  const targetAdminId = selectedAdminId || currentAdminId
+  if (targetAdminId) {
     config.params = {
       ...config.params,
-      adminId: selectedAdminId,
+      adminId: targetAdminId,
     }
   }
   return config
