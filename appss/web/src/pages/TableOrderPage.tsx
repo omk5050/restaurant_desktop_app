@@ -157,7 +157,7 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
   return (
     <article
       className={cn(
-        "flex h-[19rem] w-[14.5rem] flex-col overflow-hidden rounded-3xl border bg-card",
+        "flex h-[16.5rem] w-[11.5rem] flex-col overflow-hidden rounded-2xl border bg-card",
         "transition-[border-color,box-shadow,transform] duration-[180ms] ease-out",
         "hover:-translate-y-1 hover:shadow-warm-lg",
         quantity > 0
@@ -166,8 +166,8 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
       )}
     >
       {/* ── Image area ─── */}
-      <div className="relative h-[9.5rem] w-full shrink-0 overflow-hidden bg-panel/50 flex items-center justify-center p-3">
-        <div className="w-full h-full rounded-2xl overflow-hidden bg-white flex items-center justify-center aspect-square shadow-sm">
+      <div className="relative h-[7.25rem] w-full shrink-0 overflow-hidden bg-panel/50 flex items-center justify-center p-2">
+        <div className="w-full h-full rounded-xl overflow-hidden bg-white flex items-center justify-center aspect-square shadow-sm">
           {item.image ? (
             <img
               alt={item.name}
@@ -175,34 +175,34 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
               className="h-full w-full object-cover"
             />
           ) : (
-            <span className="text-[3.5rem]">{item.emoji}</span>
+            <span className="text-[2.5rem]">{item.emoji}</span>
           )}
         </div>
         {/* Veg/Non-Veg indicator */}
         <span
           className={cn(
-            "absolute right-4.5 top-4.5 flex size-5 items-center justify-center rounded-sm border-2 border-card shadow-sm",
+            "absolute right-3.5 top-3.5 flex size-4 items-center justify-center rounded-sm border border-card shadow-sm",
             isVeg ? "bg-green-light" : "bg-danger/10",
           )}
         >
-          <span className={cn("block size-2.5 rounded-full", isVeg ? "bg-green" : "bg-danger")} />
+          <span className={cn("block size-2 rounded-full", isVeg ? "bg-green" : "bg-danger")} />
         </span>
       </div>
 
       {/* ── Text + controls ─────────── */}
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-3 text-center">
-        <p className="line-clamp-2 h-[2.5rem] text-[0.875rem] font-black leading-tight text-text">
+      <div className="flex flex-1 flex-col px-3 pb-3 pt-2 text-center">
+        <p className="line-clamp-2 h-[2.25rem] text-[0.8125rem] font-bold leading-tight text-text">
           {item.name}
         </p>
-        <div className="mt-1.5 flex items-center justify-center">
+        <div className="mt-1 flex items-center justify-center">
           {item.price > 0
             ? (
-              <span className="text-[1.125rem] font-black text-primary">
+              <span className="text-[1rem] font-black text-primary">
                 {money.format(item.price)}
               </span>
             )
             : (
-              <span className="text-[0.875rem] font-bold text-text-sec">
+              <span className="text-[0.75rem] font-bold text-text-sec">
                 Custom price
               </span>
             )
@@ -210,14 +210,14 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
         </div>
 
         {/* ── Quantity controls ─────── */}
-        <div className="mt-auto flex items-center justify-between gap-1.5 rounded-2xl border border-border bg-panel px-2 py-2">
+        <div className="mt-auto flex items-center justify-between gap-1 rounded-xl border border-border bg-panel px-1.5 py-1">
           <button
             type="button"
             aria-label={`Decrease ${item.name}`}
             disabled={quantity === 0}
             onClick={onDecrease}
             className={cn(
-              "flex h-[2.25rem] w-[2.5rem] items-center justify-center rounded-[0.875rem] border",
+              "flex h-7 w-9 items-center justify-center rounded-lg border",
               "transition-[background-color,border-color,color,transform] duration-[140ms] ease-out",
               "active:scale-[0.92]",
               quantity === 0
@@ -225,11 +225,11 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
                 : "border-border bg-card text-text-sec shadow-sm hover:border-primary/50 hover:text-primary",
             )}
           >
-            <Minus size={14} strokeWidth={2.5} />
+            <Minus size={11} strokeWidth={2.5} />
           </button>
           <span
             key={quantity}
-            className="animate-qty min-w-[1.5rem] text-center text-[1rem] font-black tabular-nums text-text"
+            className="animate-qty min-w-[1.25rem] text-center text-[0.875rem] font-black tabular-nums text-text"
             style={{ display: "inline-block" }}
           >
             {quantity}
@@ -239,13 +239,13 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
             aria-label={`Increase ${item.name}`}
             onClick={onIncrease}
             className={cn(
-              "flex h-[2.25rem] w-[2.5rem] items-center justify-center rounded-[0.875rem]",
+              "flex h-7 w-9 items-center justify-center rounded-lg",
               "bg-primary text-white shadow-sm",
               "transition-[background-color,transform] duration-[140ms] ease-out",
               "hover:bg-primary-dark active:scale-[0.92]",
             )}
           >
-            <Plus size={14} strokeWidth={2.5} />
+            <Plus size={11} strokeWidth={2.5} />
           </button>
         </div>
       </div>
@@ -1479,7 +1479,7 @@ export function TableOrderPage({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,14.5rem)] gap-4 justify-start">
+              <div className="grid grid-cols-[repeat(auto-fill,11.5rem)] gap-4 justify-start">
                 {filteredItems.map(item => (
                   <MenuCard
                     key={item.id}
