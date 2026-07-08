@@ -208,7 +208,7 @@ export function SuperAdminPage({ onLogout, onImpersonate }: SuperAdminPageProps)
       {/* Main Panel Wrapper */}
       <main className="p-8 max-w-7xl mx-auto space-y-8">
         {/* Stats tabs bar */}
-        <div className="flex bg-[#1e1b4b] p-2 rounded-2xl gap-2 max-w-xl shadow-lg border border-white/5">
+        <div className="flex bg-[#1e1b4b] p-2 rounded-2xl gap-2 w-full shadow-lg border border-white/5">
           <button
             onClick={() => setActiveTab("admins")}
             className={`flex-1 flex flex-col items-center py-4 rounded-xl transition-all duration-150 ${
