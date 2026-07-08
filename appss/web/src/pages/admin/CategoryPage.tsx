@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, type ReactNode } from "react"
+import React, { useState, useMemo, useEffect, type ReactNode } from "react"
 import {
   GripVertical, Pencil, Plus, Tag, Trash2, Search,
   Filter, MoreHorizontal, CheckCircle2, XCircle, LayoutGrid, PackageOpen
@@ -24,6 +24,61 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
 )
 
 const BLANK = { name: "", color: "#F97316", sortOrder: 1, active: true, itemCount: 0, icon: "🍽️" }
+
+// ── FormBody extracted OUTSIDE CategoryPage to prevent cursor-jumping ──
+// When defined inside a component, React creates a new component type each render
+// causing unmount/remount and loss of focus after every keystroke.
+interface FormBodyProps {
+  form: Omit<import("@/mocks").Category, "id">
+  setForm: React.Dispatch<React.SetStateAction<Omit<import("@/mocks").Category, "id">>>
+}
+
+function FormBody({ form, setForm }: FormBodyProps) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Field label="Category Name *">
+        <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Biryani" className="h-10 rounded-xl text-[0.8125rem]" />
+      </Field>
+      <Field label="Display Color">
+        <div className="mt-1 flex flex-wrap gap-2">
+          {PRESET_COLORS.map(color => (
+            <button key={color} type="button" aria-label={`Color ${color}`}
+              className={cn("size-8 rounded-full border-2 transition-transform hover:scale-110", form.color === color ? "scale-110 border-text shadow-sm" : "border-transparent")}
+              style={{ backgroundColor: color }}
+              onClick={() => setForm(p => ({ ...p, color }))}
+            />
+          ))}
+        </div>
+      </Field>
+      <Field label="Emoji Icon">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-xl border border-border bg-panel text-[1.5rem]">
+            {form.icon || "🍽️"}
+          </span>
+          <Input
+            value={form.icon}
+            onChange={e => setForm(p => ({ ...p, icon: e.target.value }))}
+            placeholder="Paste an emoji, e.g. 🍛"
+            className="h-10 rounded-xl text-[0.8125rem] flex-1"
+          />
+        </div>
+      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Sort Order">
+          <Input type="number" min={1} value={form.sortOrder} className="h-10 rounded-xl text-[0.8125rem]"
+            onChange={e => setForm(p => ({ ...p, sortOrder: Number(e.target.value) }))} />
+        </Field>
+        <Field label="Status">
+          <button type="button" onClick={() => setForm(p => ({ ...p, active: !p.active }))}
+            className={cn("flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-[0.8125rem] font-bold transition-colors", form.active ? "border-green bg-green/10 text-green" : "border-border bg-panel text-text-sec")}>
+            {form.active ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+            {form.active ? "Active" : "Inactive"}
+          </button>
+        </Field>
+      </div>
+    </div>
+  )
+}
 
 const StatTile = ({ label, value, icon: Icon, tone = "orange" }: { label: string; value: string | number; icon: any; tone?: "orange" | "green" | "gray" | "blue" }) => {
   const tones = {
@@ -74,50 +129,6 @@ export function CategoryPage() {
   const handleDelete = async () => { if (!deleteId) return; await deleteCategory(deleteId); setDeleteId(null) }
   const toggleActive = async (cat: ApiCategory) => { await updateCategory(cat.id, { active: !cat.active }) }
 
-  const FormBody = () => (
-    <div className="flex flex-col gap-4">
-      <Field label="Category Name *">
-        <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Biryani" className="h-10 rounded-xl text-[0.8125rem]" />
-      </Field>
-      <Field label="Display Color">
-        <div className="mt-1 flex flex-wrap gap-2">
-          {PRESET_COLORS.map(color => (
-            <button key={color} type="button" aria-label={`Color ${color}`}
-              className={cn("size-8 rounded-full border-2 transition-transform hover:scale-110", form.color === color ? "scale-110 border-text shadow-sm" : "border-transparent")}
-              style={{ backgroundColor: color }}
-              onClick={() => setForm(p => ({ ...p, color }))}
-            />
-          ))}
-        </div>
-      </Field>
-      <Field label="Emoji Icon">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl border border-border bg-panel text-[1.5rem]">
-            {form.icon || "🍽️"}
-          </span>
-          <Input
-            value={form.icon}
-            onChange={e => setForm(p => ({ ...p, icon: e.target.value }))}
-            placeholder="Paste an emoji, e.g. 🍛"
-            className="h-10 rounded-xl text-[0.8125rem] flex-1"
-          />
-        </div>
-      </Field>
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Sort Order">
-          <Input type="number" min={1} value={form.sortOrder} className="h-10 rounded-xl text-[0.8125rem]"
-            onChange={e => setForm(p => ({ ...p, sortOrder: Number(e.target.value) }))} />
-        </Field>
-        <Field label="Status">
-          <button type="button" onClick={() => setForm(p => ({ ...p, active: !p.active }))}
-            className={cn("flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-[0.8125rem] font-bold transition-colors", form.active ? "border-green bg-green/10 text-green" : "border-border bg-panel text-text-sec")}>
-            {form.active ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-            {form.active ? "Active" : "Inactive"}
-          </button>
-        </Field>
-      </div>
-    </div>
-  )
 
   const totalItems = items.length
 
@@ -226,11 +237,11 @@ export function CategoryPage() {
 
       <Dialog open={addOpen} onClose={closeAll} title="Add Category"
         footer={<><Button variant="secondary" onClick={closeAll} className="h-10 rounded-xl px-4 text-[0.8125rem]">Cancel</Button><Button onClick={handleSaveNew} className="h-10 rounded-xl px-4 text-[0.8125rem]">Save Category</Button></>}>
-        <FormBody />
+        <FormBody form={form} setForm={setForm} />
       </Dialog>
       <Dialog open={!!editCat} onClose={closeAll} title="Edit Category"
         footer={<><Button variant="secondary" onClick={closeAll} className="h-10 rounded-xl px-4 text-[0.8125rem]">Cancel</Button><Button onClick={handleSaveEdit} className="h-10 rounded-xl px-4 text-[0.8125rem]">Save Changes</Button></>}>
-        <FormBody />
+        <FormBody form={form} setForm={setForm} />
       </Dialog>
       <ConfirmDialog open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete}
         title="Delete Category"

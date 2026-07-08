@@ -5,7 +5,7 @@ import {
 import { Badge, Button, Card } from "@/components/ui"
 import { Header } from "@/components/layout"
 import { cn } from "@/lib/cn"
-import { money } from "@/utils/currency"
+import { useCurrency } from "@/hooks/useCurrency"
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { CardSkeleton } from "@/components/shared/Skeleton"
@@ -128,6 +128,7 @@ interface TablesPageProps {
 }
 
 export function TablesPage({ onOpenTable, restaurantName = "Hotel Grand", tagline = "Dining Room Live", todayRevenue = 0 }: TablesPageProps) {
+  const fmt = useCurrency()
   const [search,        setSearch]        = useState("")
   const [statusFilter,  setStatusFilter]  = useState<TableStatus | "all">("all")
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
@@ -203,7 +204,7 @@ export function TablesPage({ onOpenTable, restaurantName = "Hotel Grand", taglin
           badge={`${counts.active + counts.bill} orders`}
           kicker={tagline}
           title={restaurantName}
-          value={money.format(todayRevenue)}
+          value={fmt.format(todayRevenue)}
           valueLabel="Today Sales"
         />
 

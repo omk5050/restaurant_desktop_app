@@ -40,7 +40,8 @@ export const useTableStore = create<TableState>((set) => ({
   error:   null,
 
   fetchTables: async () => {
-    set({ loading: true, error: null })
+    // Only show loading spinner on the very first fetch (no tables yet)
+    set(state => ({ loading: state.tables.length === 0, error: null }))
     try {
       const { data } = await api.get<ApiTable[]>("/tables")
       set({ tables: data, loading: false })

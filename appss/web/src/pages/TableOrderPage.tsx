@@ -12,11 +12,13 @@ import { cn } from "@/lib/cn"
 import { useTableStore, type ApiTable as DiningTable } from "@/store/tableStore"
 import { useOrderStore } from "@/store/orderStore"
 import { useKotStore } from "@/store/kotStore"
-import { money } from "@/utils/currency"
 import type { UseCartReturn } from "@/hooks/useCart"
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
 import { useMenuStore } from "@/store/menuStore"
 import { useSettingsStore } from "@/store/settingsStore"
+import { money } from "@/utils/currency"
+import { useCurrency } from "@/hooks/useCurrency"
+import { useDateTime } from "@/hooks/useDateTime"
 
 type PosCategory = string
 type VegFilter = "all" | "veg" | "nonveg"
@@ -157,7 +159,7 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
   return (
     <article
       className={cn(
-        "flex h-[16.5rem] w-[11.5rem] flex-col overflow-hidden rounded-2xl border bg-card",
+        "flex h-[16rem] w-full flex-col overflow-hidden rounded-2xl border bg-card",
         "transition-[border-color,box-shadow,transform] duration-[180ms] ease-out",
         "hover:-translate-y-1 hover:shadow-warm-lg",
         quantity > 0
@@ -259,25 +261,18 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
 function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
   tableName:   string
   orderNo:     string
-  items:       Array<{ name: string; quantity: number }>
+  items:       Array<{ name: string; quantity: number; kotSent?: boolean }>
   kitchenNote: string
 }) {
+  const { formatDateTime } = useDateTime()
   const now = new Date()
-  
-  // Format Date to match: 8/7/2026, 2:16:23 am
-  const day = now.getDate()
-  const month = now.getMonth() + 1
-  const year = now.getFullYear()
-  
-  let hours = now.getHours()
-  const minutes = String(now.getMinutes()).padStart(2, '0')
-  const seconds = String(now.getSeconds()).padStart(2, '0')
-  const ampm = hours >= 12 ? 'pm' : 'am'
-  hours = hours % 12
-  hours = hours ? hours : 12 // the hour '0' should be '12'
-  const dateStr = `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`
+  const dateStr = formatDateTime(now)
 
   const displayOrderNo = orderNo.startsWith("#") ? orderNo : `#${orderNo}`
+
+  // Separate unsent (new) and already-sent items
+  const newItems  = items.filter(i => !i.kotSent)
+  const sentItems = items.filter(i =>  i.kotSent)
 
   return (
     <div id="kot-receipt" className="hidden print:block text-black bg-white" style={{ fontFamily: "'Courier New', Courier, monospace", width: "80mm", padding: "10px", boxSizing: "border-box" }}>
@@ -316,17 +311,38 @@ function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
         ----------------------------------------
       </div>
 
-      <div className="text-left text-[16px] font-bold space-y-1" style={{ fontWeight: 900, lineHeight: "1.4" }}>
-        {items.map((item, idx) => (
-          <div key={idx}>
-            {item.name} x{item.quantity}
+      {/* NEW items (the reason this KOT was printed) */}
+      {newItems.length > 0 && (
+        <>
+          <div className="text-left text-[13px] font-bold mb-1" style={{ fontWeight: 900, textDecoration: "underline" }}>NEW ITEMS:</div>
+          <div className="text-left text-[16px] font-bold space-y-1" style={{ fontWeight: 900, lineHeight: "1.4" }}>
+            {newItems.map((item, idx) => (
+              <div key={idx}>★ {item.name} x{item.quantity}</div>
+            ))}
           </div>
-        ))}
-      </div>
+          <div className="text-center text-[13px] tracking-tight leading-none my-2" style={{ fontWeight: 900, letterSpacing: "-1px" }}>
+            ----------------------------------------
+          </div>
+        </>
+      )}
 
-      <div className="text-center text-[13px] tracking-tight leading-none my-2" style={{ fontWeight: 900, letterSpacing: "-1px" }}>
-        ----------------------------------------
-      </div>
+      {/* Previously sent items (context) */}
+      {sentItems.length > 0 && (
+        <>
+          <div className="text-left text-[13px] font-bold mb-1" style={{ fontWeight: 900, textDecoration: "underline" }}>ALL ORDER ITEMS:</div>
+          <div className="text-left text-[14px] space-y-0.5" style={{ fontWeight: 700, lineHeight: "1.5" }}>
+            {items.map((item, idx) => (
+              <div key={idx} style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{item.name}</span>
+                <span>x{item.quantity}</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-center text-[13px] tracking-tight leading-none my-2" style={{ fontWeight: 900, letterSpacing: "-1px" }}>
+            ----------------------------------------
+          </div>
+        </>
+      )}
 
       {kitchenNote && (
         <>
@@ -403,6 +419,7 @@ function OrderSummary({
   onDiscount:         () => void
   onDecreaseItem:     (item: { id: string; name: string; kotSent: boolean }) => void
 }) {
+  const fmt = useCurrency()
   const { gstAmount, discAmt, total } = computeTotals(cart.subtotal, billing)
 
   const hasActive = billing.gstEnabled || billing.extraCharges.length > 0
@@ -520,7 +537,7 @@ function OrderSummary({
 
                 {/* Line total */}
                 <span className="text-right text-[0.8125rem] font-black tabular-nums text-text">
-                  {money.format(item.price * item.quantity)}
+                  {fmt.format(item.price * item.quantity)}
                 </span>
               </div>
             ))}
@@ -537,17 +554,17 @@ function OrderSummary({
             <>
               <div className="flex justify-between text-[0.75rem] text-text-sec">
                 <span>Subtotal</span>
-                <span className="tabular-nums">{money.format(cart.subtotal)}</span>
+                <span className="tabular-nums">{fmt.format(cart.subtotal)}</span>
               </div>
               {billing.gstEnabled && (
                 <>
                   <div className="flex justify-between text-[0.75rem] text-text-sec">
                     <span>CGST ({billing.gstRate / 2}%)</span>
-                    <span className="tabular-nums">{money.format(Math.round(gstAmount / 2))}</span>
+                    <span className="tabular-nums">{fmt.format(Math.round(gstAmount / 2))}</span>
                   </div>
                   <div className="flex justify-between text-[0.75rem] text-text-sec">
                     <span>SGST ({billing.gstRate / 2}%)</span>
-                    <span className="tabular-nums">{money.format(gstAmount - Math.round(gstAmount / 2))}</span>
+                    <span className="tabular-nums">{fmt.format(gstAmount - Math.round(gstAmount / 2))}</span>
                   </div>
                 </>
               )}
@@ -555,14 +572,14 @@ function OrderSummary({
                 <div key={c.id} className="flex justify-between text-[0.75rem] text-text-sec">
                   <span>{c.name}{c.isPercent ? ` (${c.value}%)` : ""}</span>
                   <span className="tabular-nums">
-                    {money.format(c.isPercent ? Math.round(cart.subtotal * c.value / 100) : c.value)}
+                    {fmt.format(c.isPercent ? Math.round(cart.subtotal * c.value / 100) : c.value)}
                   </span>
                 </div>
               ))}
               {hasDisc && (
                 <div className="flex justify-between text-[0.75rem] text-green">
                   <span>Discount{billing.discountType === "percent" ? ` (${billing.discountValue}%)` : ""}</span>
-                  <span className="tabular-nums">-{money.format(discAmt)}</span>
+                  <span className="tabular-nums">-{fmt.format(discAmt)}</span>
                 </div>
               )}
               <div className="mt-0.5 border-t border-border/60 pt-1.5" />
@@ -571,7 +588,7 @@ function OrderSummary({
           <div className="flex items-baseline justify-between">
             <span className="text-[0.875rem] font-bold text-text">Total</span>
             <span className="text-[1.125rem] font-black tabular-nums text-primary">
-              {cart.cartItems.length > 0 ? money.format(total) : "₹0"}
+              {cart.cartItems.length > 0 ? fmt.format(total) : "—"}
             </span>
           </div>
         </div>
@@ -1184,21 +1201,11 @@ export function TableOrderPage({
     return order
   }
 
-  // State to hold KOT items to print
-  const [kotItemsToPrint, setKotItemsToPrint] = useState<Array<{ name: string; quantity: number }>>([])
   // State to hold reasons for items removed during this edit session
   const [removedItemsReasons, setRemovedItemsReasons] = useState<Array<{ name: string; qty: number; reason: string }>>([])
 
   // ── KOT handlers ─────────────────────────────────────────────────────────
   const fireKot = async (withPrint: boolean) => {
-    // 1. Identify unsent items that are being fired in this batch
-    const unsent = cart.cartItems.filter(i => !i.kotSent).map(i => ({
-      name: i.name,
-      quantity: i.quantity,
-    }))
-    setKotItemsToPrint(unsent)
-
-    // Save/update order as open
     const order = await saveCurrentOrder("open")
 
     // Determine type (new KOT vs update KOT)
@@ -1470,7 +1477,7 @@ export function TableOrderPage({
 
           {/* Search bar */}
           <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card dark:bg-bg px-4 py-2">
-            <div className="relative flex-1">
+            <div className="relative w-[20rem] shrink-0">
               <Search
                 size={14}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-sec/50"
@@ -1487,7 +1494,7 @@ export function TableOrderPage({
             </div>
             <Input
               aria-label="Short code"
-              className="h-9 w-36 rounded-xl text-[0.8125rem]"
+              className="h-9 w-32 rounded-xl text-[0.8125rem]"
               placeholder="Short Code"
             />
           </div>
@@ -1518,7 +1525,7 @@ export function TableOrderPage({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,11.5rem)] gap-4 justify-start">
+              <div className="grid grid-cols-6 gap-3">
                 {filteredItems.map(item => (
                   <MenuCard
                     key={item.id}
@@ -1554,10 +1561,11 @@ export function TableOrderPage({
       </main>
 
       {/* ── KOT print target (hidden except on print) ─────────────── */}
+      {/* Always pass ALL cart items so the kitchen sees the full picture */}
       <KotReceiptPrint
         tableName={selectedTable.name}
         orderNo={selectedTable.currentOrderId || "NEW"}
-        items={kotItemsToPrint.length > 0 ? kotItemsToPrint : cart.cartItems.filter(i => !i.kotSent)}
+        items={cart.cartItems.map(i => ({ name: i.name, quantity: i.quantity, kotSent: i.kotSent }))}
         kitchenNote={kitchenNote}
       />
 
