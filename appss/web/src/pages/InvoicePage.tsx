@@ -228,7 +228,23 @@ export function InvoicePage({
             padding: "8px 6px",
             color: "#000",
             background: "#fff",
+            boxSizing: "border-box",
           }}>
+            <style>{`
+              @media print {
+                body * { visibility: hidden !important; }
+                #thermal-receipt, #thermal-receipt * { visibility: visible !important; }
+                #thermal-receipt {
+                  position: fixed;
+                  left: 0;
+                  top: 0;
+                  width: 80mm;
+                  padding: 8px 6px;
+                  margin: 0;
+                  background: #fff !important;
+                }
+              }
+            `}</style>
             {/* Header */}
             <div style={{ textAlign: "center", marginBottom: "6px" }}>
               <div style={{ fontSize: "18px", fontWeight: 900, letterSpacing: "1px" }}>{restaurantName}</div>

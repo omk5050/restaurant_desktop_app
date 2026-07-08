@@ -257,6 +257,7 @@ function MenuCard({ item, quantity, onIncrease, onDecrease }: {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // KOT Receipt (print target)
+// Matches the exact thermal receipt layout from the reference image
 // ─────────────────────────────────────────────────────────────────────────────
 function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
   tableName:   string
@@ -267,95 +268,97 @@ function KotReceiptPrint({ tableName, orderNo, items, kitchenNote }: {
   const { formatDateTime } = useDateTime()
   const now = new Date()
   const dateStr = formatDateTime(now)
-
   const displayOrderNo = orderNo.startsWith("#") ? orderNo : `#${orderNo}`
 
-  // Separate unsent (new) and already-sent items
-  const newItems  = items.filter(i => !i.kotSent)
-  const sentItems = items.filter(i =>  i.kotSent)
+  const DASH = "- - - - - - - - - - - - - - - - - - - - - - -"
 
   return (
-    <div id="kot-receipt" className="hidden print:block text-black bg-white" style={{ fontFamily: "'Courier New', Courier, monospace", width: "80mm", padding: "10px", boxSizing: "border-box" }}>
+    <div
+      id="kot-receipt"
+      className="hidden print:block"
+      style={{
+        fontFamily: "'Courier New', Courier, monospace",
+        width: "80mm",
+        margin: "0 auto",
+        padding: "12px 10px",
+        color: "#000",
+        background: "#fff",
+        boxSizing: "border-box",
+      }}
+    >
       <style>{`
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          #kot-receipt, #kot-receipt * {
-            visibility: visible;
-          }
+          body * { visibility: hidden !important; }
+          #kot-receipt, #kot-receipt * { visibility: visible !important; }
           #kot-receipt {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 0;
+            position: fixed;
+            left: 0; top: 0;
+            width: 80mm;
+            padding: 12px 10px;
             margin: 0;
           }
         }
       `}</style>
-      <div className="text-center font-bold text-[18px] tracking-wide mb-1" style={{ fontWeight: 900 }}>
+
+      {/* Title */}
+      <div style={{ textAlign: "center", fontWeight: 900, fontSize: "16px", letterSpacing: "0.5px", marginBottom: "6px" }}>
         KITCHEN ORDER (KOT)
       </div>
-      <div className="text-center text-[13px] tracking-tight leading-none mb-2" style={{ fontWeight: 900, letterSpacing: "-1px" }}>
-        ----------------------------------------
-      </div>
-      
-      <div className="text-left text-[15px] font-bold space-y-1" style={{ fontWeight: 900, lineHeight: "1.4" }}>
+
+      {/* Separator */}
+      <div style={{ fontSize: "11px", color: "#000", marginBottom: "6px" }}>{DASH}</div>
+
+      {/* Meta */}
+      <div style={{ fontWeight: 900, fontSize: "13px", lineHeight: "1.7" }}>
         <div>TABLE/ORDER: {tableName}</div>
         <div>ORDER NO : {displayOrderNo}</div>
         <div>DATE : {dateStr}</div>
       </div>
 
-      <div className="text-center text-[13px] tracking-tight leading-none my-2" style={{ fontWeight: 900, letterSpacing: "-1px" }}>
-        ----------------------------------------
+      {/* Separator */}
+      <div style={{ fontSize: "11px", color: "#000", margin: "6px 0" }}>{DASH}</div>
+
+      {/* Items — name left, xN right */}
+      <div style={{ fontSize: "15px", fontWeight: 700, lineHeight: "1.8" }}>
+        {items.map((item, idx) => (
+          <div
+            key={idx}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+            }}
+          >
+            <span style={{ fontWeight: 700 }}>{item.name}</span>
+            <span style={{ fontWeight: 900, marginLeft: "12px", whiteSpace: "nowrap" }}>x{item.quantity}</span>
+          </div>
+        ))}
       </div>
 
-      {/* NEW items (the reason this KOT was printed) */}
-      {newItems.length > 0 && (
-        <>
-          <div className="text-left text-[13px] font-bold mb-1" style={{ fontWeight: 900, textDecoration: "underline" }}>NEW ITEMS:</div>
-          <div className="text-left text-[16px] font-bold space-y-1" style={{ fontWeight: 900, lineHeight: "1.4" }}>
-            {newItems.map((item, idx) => (
-              <div key={idx}>★ {item.name} x{item.quantity}</div>
-            ))}
-          </div>
-          <div className="text-center text-[13px] tracking-tight leading-none my-2" style={{ fontWeight: 900, letterSpacing: "-1px" }}>
-            ----------------------------------------
-          </div>
-        </>
-      )}
+      {/* Separator */}
+      <div style={{ fontSize: "11px", color: "#000", margin: "6px 0" }}>{DASH}</div>
 
-      {/* Previously sent items (context) */}
-      {sentItems.length > 0 && (
-        <>
-          <div className="text-left text-[13px] font-bold mb-1" style={{ fontWeight: 900, textDecoration: "underline" }}>ALL ORDER ITEMS:</div>
-          <div className="text-left text-[14px] space-y-0.5" style={{ fontWeight: 700, lineHeight: "1.5" }}>
-            {items.map((item, idx) => (
-              <div key={idx} style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>{item.name}</span>
-                <span>x{item.quantity}</span>
-              </div>
-            ))}
-          </div>
-          <div className="text-center text-[13px] tracking-tight leading-none my-2" style={{ fontWeight: 900, letterSpacing: "-1px" }}>
-            ----------------------------------------
-          </div>
-        </>
-      )}
-
+      {/* Kitchen note in a box */}
       {kitchenNote && (
         <>
-          <div className="text-left text-[14px] font-bold mb-1" style={{ fontWeight: 900 }}>
-            <span className="underline">Note:</span> {kitchenNote}
+          <div style={{ fontWeight: 900, fontSize: "12px", marginBottom: "4px" }}>⚠ KITCHEN NOTE:</div>
+          <div style={{
+            border: "1.5px solid #000",
+            borderRadius: "4px",
+            padding: "5px 8px",
+            fontSize: "13px",
+            fontWeight: 700,
+            minHeight: "32px",
+            marginBottom: "6px",
+          }}>
+            {kitchenNote}
           </div>
-          <div className="text-center text-[13px] tracking-tight leading-none my-2" style={{ fontWeight: 900, letterSpacing: "-1px" }}>
-            ----------------------------------------
-          </div>
+          <div style={{ fontSize: "11px", color: "#000", marginBottom: "6px" }}>{DASH}</div>
         </>
       )}
 
-      <div className="text-center text-[14px] font-bold" style={{ fontWeight: 900 }}>
+      {/* Footer */}
+      <div style={{ textAlign: "center", fontWeight: 900, fontSize: "14px" }}>
         Kitchen Copy
       </div>
     </div>
@@ -445,22 +448,6 @@ function OrderSummary({
           <span className="shrink-0 rounded-full bg-primary-light px-2.5 py-1 text-[0.6875rem] font-black text-primary">
             Dine In
           </span>
-        </div>
-
-        {/* Tab switcher */}
-        <div className="mt-3 flex gap-1 rounded-xl bg-panel p-1">
-          <button
-            type="button"
-            className="flex-1 rounded-xl bg-card py-1.5 text-[0.75rem] font-bold text-primary shadow-sm transition"
-          >
-            Dine In
-          </button>
-          <button
-            type="button"
-            className="flex-1 rounded-xl py-1.5 text-[0.75rem] font-semibold text-text-sec transition hover:text-primary"
-          >
-            Pick Up
-          </button>
         </div>
       </div>
 
@@ -703,7 +690,71 @@ function KitchenNoteModal({ value, onSave, onClose }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Reason Modal (used for Clear and Item Removal after KOT)
+// Item Removal Modal — shown when a KOT-sent item is decreased
+// ─────────────────────────────────────────────────────────────────────────────
+function ItemRemovalModal({ itemName, onConfirm, onSkip, onClose }: {
+  itemName:  string
+  onConfirm: (reason: string) => void
+  onSkip:    () => void
+  onClose:   () => void
+}) {
+  const [reason, setReason] = useState("")
+  return (
+    <Modal onClose={onClose}>
+      <div className="w-full max-w-[22rem] rounded-3xl border border-border bg-card px-6 pb-6 pt-7 shadow-modal text-center">
+        {/* Scissors icon */}
+        <div className="mb-4 flex justify-center">
+          <span style={{ fontSize: "2.5rem", lineHeight: 1 }}>✂️</span>
+        </div>
+
+        {/* Title */}
+        <h2 className="text-[1.375rem] font-black" style={{ color: "#F97316" }}>Item Removed</h2>
+
+        {/* Description */}
+        <p className="mt-2 text-[0.875rem] text-text-sec leading-snug">
+          You removed:{" "}
+          <span className="font-bold" style={{ color: "#EF4444" }}>{itemName}</span>
+          <br />
+          Please provide a reason for the kitchen.
+        </p>
+
+        {/* Reason input */}
+        <div className="mt-5 text-left">
+          <label className="mb-1.5 block text-[0.75rem] font-bold text-text-sec">Reason for removal</label>
+          <input
+            autoFocus
+            type="text"
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && reason.trim()) { onConfirm(reason.trim()); onClose() } }}
+            placeholder="e.g. Customer changed mind, Out of stock…"
+            className="h-12 w-full rounded-2xl border border-primary/60 bg-panel px-4 text-[0.875rem] text-text outline-none transition-[border-color] focus:border-primary"
+          />
+        </div>
+
+        {/* Send KOT button */}
+        <button
+          onClick={() => { if (reason.trim()) { onConfirm(reason.trim()); onClose() } else { onConfirm(""); onClose() } }}
+          className="mt-4 flex h-12 w-full items-center justify-center rounded-2xl font-bold text-white transition-[background-color,transform] duration-[140ms] hover:opacity-90 active:scale-[0.98]"
+          style={{ background: "linear-gradient(135deg, #F97316 0%, #ea580c 100%)", fontSize: "0.9375rem" }}
+        >
+          Send KOT
+        </button>
+
+        {/* Skip Reason button */}
+        <button
+          onClick={() => { onSkip(); onClose() }}
+          className="mt-2.5 flex h-11 w-full items-center justify-center rounded-2xl bg-panel text-[0.9375rem] font-bold text-text-sec transition-[background-color] hover:bg-border/40"
+        >
+          Skip Reason
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reason Modal (used for Clear order only now)
 // ─────────────────────────────────────────────────────────────────────────────
 function ReasonModal({ title, description, onConfirm, onClose }: {
   title:       string
@@ -1579,10 +1630,10 @@ export function TableOrderPage({
       )}
 
       {removalTarget && (
-        <ReasonModal
-          title="Remove KOT Item"
-          description={`"${removalTarget.name}" was already sent to the kitchen. Please provide a reason for removing it.`}
-          onConfirm={handleRemovalConfirmed}
+        <ItemRemovalModal
+          itemName={removalTarget.name}
+          onConfirm={reason => handleRemovalConfirmed(reason || "No reason provided")}
+          onSkip={() => handleRemovalConfirmed("Removed without reason")}
           onClose={() => setRemovalTarget(null)}
         />
       )}
