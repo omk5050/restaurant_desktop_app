@@ -5,11 +5,17 @@ import {
 import { Badge, Button, Card } from "@/components/ui"
 import { Header } from "@/components/layout"
 import { cn } from "@/lib/cn"
-import { type DiningTable, type TableStatus, tables } from "@/mocks/pos"
 import { money } from "@/utils/currency"
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
 import { EmptyState } from "@/components/shared/EmptyState"
-import { TableCardSkeleton, CardSkeleton } from "@/components/shared/Skeleton"
+import { CardSkeleton } from "@/components/shared/Skeleton"
+import { ConfirmDialog } from "@/components/admin/Dialog"
+import { useTableStore, type ApiTable, type TableStatus, type TableSection } from "@/store/tableStore"
+
+// ── Local alias (shape matches what UI expects) ────────────────────
+export type { TableStatus, TableSection }
+export type DiningTable = ApiTable
+
 
 // ── Status meta ─────────────────────────────────────────────────────
 const statusMeta: Record<TableStatus, { label: string; border: string; bg: string; text: string; dot: string }> = {
@@ -122,13 +128,15 @@ export function TablesPage({ onOpenTable }: TablesPageProps) {
   const [search,        setSearch]        = useState("")
   const [statusFilter,  setStatusFilter]  = useState<TableStatus | "all">("all")
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
-  const [loading,       setLoading]       = useState(true)
+  const [clearTableTarget, setClearTableTarget] = useState<DiningTable | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
+  // ── API ───────────────────────────────────────────────────────────
+  const { tables, loading, fetchTables, clearTable } = useTableStore()
+
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600)
-    return () => clearTimeout(t)
-  }, [])
+    fetchTables()
+  }, [fetchTables])
 
   useKeyboardShortcuts([
     { key: "f", ctrl: true, action: () => searchRef.current?.focus() },
@@ -142,7 +150,7 @@ export function TablesPage({ onOpenTable }: TablesPageProps) {
       const matchStatus = statusFilter === "all" || t.status === statusFilter
       return matchSearch && matchStatus
     })
-  }, [search, statusFilter])
+  }, [search, statusFilter, tables])
 
   const grouped = useMemo(() =>
     sectionMeta.map(section => ({
@@ -156,11 +164,22 @@ export function TablesPage({ onOpenTable }: TablesPageProps) {
     bill:   tables.filter(t => t.status === "bill").length,
     paid:   tables.filter(t => t.status === "paid").length,
     empty:  tables.filter(t => t.status === "empty").length,
-  }), [])
+  }), [tables])
 
   const handleOpenTable = (table: DiningTable) => {
-    setSelectedTable(table.id)
-    onOpenTable(table)
+    setSelectedTable(String(table.id))
+    if (table.status === "paid") {
+      setClearTableTarget(table)
+    } else {
+      onOpenTable(table)
+    }
+  }
+
+  const handleConfirmClear = async () => {
+    if (clearTableTarget) {
+      await clearTable(clearTableTarget.id)
+      setClearTableTarget(null)
+    }
   }
 
   const totalResults = filteredTables.length
@@ -176,10 +195,10 @@ export function TablesPage({ onOpenTable }: TablesPageProps) {
 
         {/* Hero */}
         <HeroPanel
-          badge="13 orders"
+          badge={`${counts.active + counts.bill} orders`}
           kicker="Dining Room Live"
           title="Hotel Grand"
-          value={money.format(575)}
+          value={money.format(0)}
           valueLabel="Today Sales"
         />
 
@@ -297,18 +316,14 @@ export function TablesPage({ onOpenTable }: TablesPageProps) {
 
                   {/* Table buttons grid */}
                   <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1.5">
-                    {section.tables.map(table =>
-                      loading
-                        ? <TableCardSkeleton key={table.id} />
-                        : (
-                          <TableRowButton
-                            key={table.id}
-                            table={table}
-                            selected={selectedTable === table.id}
-                            onClick={() => handleOpenTable(table)}
-                          />
-                        ),
-                    )}
+                    {section.tables.map(table => (
+                      <TableRowButton
+                        key={table.id}
+                        table={table}
+                        selected={selectedTable === String(table.id)}
+                        onClick={() => handleOpenTable(table)}
+                      />
+                    ))}
                   </div>
                 </Card>
               )
@@ -316,6 +331,14 @@ export function TablesPage({ onOpenTable }: TablesPageProps) {
           </section>
         )}
       </main>
+
+      <ConfirmDialog
+        open={clearTableTarget !== null}
+        onClose={() => setClearTableTarget(null)}
+        onConfirm={handleConfirmClear}
+        title="Clear Table"
+        message={`Table "${clearTableTarget?.name}" is currently marked as Paid (Cleaning). Would you like to clear this table and make it available for new guests?`}
+      />
     </>
   )
 }

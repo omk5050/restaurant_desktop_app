@@ -3,7 +3,8 @@ import { ArrowLeft, Banknote, CreditCard, Smartphone, X } from "lucide-react"
 import { Button, Card } from "@/components/ui"
 import { Header } from "@/components/layout"
 import { cn } from "@/lib/cn"
-import { type DiningTable, type PaymentMethod } from "@/mocks/pos"
+import { type PaymentMethod } from "@/mocks/pos"
+import { type ApiTable as DiningTable } from "@/store/tableStore"
 import { money } from "@/utils/currency"
 import type { CartItem } from "@/types/common"
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
@@ -112,6 +113,8 @@ function ConfirmDialog({
 }
 
 // ── Main component ─────────────────────────────────────────────────
+import { useOrderStore } from "@/store/orderStore"
+
 interface PaymentPageProps {
   selectedTable: DiningTable
   cartItems:     CartItem[]
@@ -119,12 +122,13 @@ interface PaymentPageProps {
   gst:           number
   total:         number
   onBack:        () => void
-  onComplete:    () => void
+  onComplete:    (method: PaymentMethod) => void
 }
 
 export function PaymentPage({
   selectedTable, cartItems, subtotal, gst, total, onBack, onComplete,
 }: PaymentPageProps) {
+  const { processPayment } = useOrderStore()
   const [method,       setMethod]       = useState<PaymentMethod>("cash")
   const [cashTendered, setCashTendered] = useState<string>("")
   const [showConfirm,  setShowConfirm]  = useState(false)
@@ -138,7 +142,14 @@ export function PaymentPage({
   ])
 
   const handleProceed = () => { if (isValidCash) setShowConfirm(true) }
-  const handleConfirm = () => { setShowConfirm(false); onComplete() }
+  
+  const handleConfirm = async () => {
+    if (selectedTable.currentOrderId) {
+      await processPayment(selectedTable.currentOrderId, { paymentMethod: method })
+    }
+    setShowConfirm(false)
+    onComplete(method)
+  }
 
   const selectedMeta = METHOD_OPTIONS.find(m => m.id === method)!
 

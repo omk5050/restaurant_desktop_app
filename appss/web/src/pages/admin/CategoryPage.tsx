@@ -1,13 +1,14 @@
-import { useState, useMemo, type ReactNode } from "react"
+import { useState, useMemo, useEffect, type ReactNode } from "react"
 import {
-  GripVertical, Pencil, Plus, Tag, Trash2, Layers, Search,
+  GripVertical, Pencil, Plus, Tag, Trash2, Search,
   Filter, MoreHorizontal, CheckCircle2, XCircle, LayoutGrid, PackageOpen
 } from "lucide-react"
 import { Button, Card, Input } from "@/components/ui"
 import { cn } from "@/lib/cn"
-import { categories as initialCategories, type Category } from "@/mocks"
 import { Dialog, ConfirmDialog } from "@/components/admin/Dialog"
 import { EmptyState } from "@/components/shared/EmptyState"
+import { useMenuStore, type ApiCategory } from "@/store/menuStore"
+import type { Category } from "@/mocks"
 
 const PRESET_COLORS = [
   "#F97316","#EF4444","#16A34A","#2563EB","#7C3AED",
@@ -48,23 +49,30 @@ const StatTile = ({ label, value, icon: Icon, tone = "orange" }: { label: string
 }
 
 export function CategoryPage() {
-  const [cats, setCats] = useState<Category[]>(initialCategories)
+  const { categories, fetchCategories, items, fetchMenu, addCategory, updateCategory, deleteCategory } = useMenuStore()
+  const cats = categories
+
   const [search, setSearch] = useState("")
   const [addOpen, setAddOpen] = useState(false)
-  const [editCat, setEditCat] = useState<Category | null>(null)
+  const [editCat, setEditCat] = useState<ApiCategory | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<Category, "id">>(BLANK)
+
+  useEffect(() => {
+    fetchCategories()
+    fetchMenu()
+  }, [fetchCategories, fetchMenu])
 
   const filteredCats = useMemo(() => cats.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => a.sortOrder - b.sortOrder), [cats, search])
 
   const openAdd = () => { setForm({ ...BLANK, sortOrder: cats.length + 1 }); setAddOpen(true) }
-  const openEdit = (c: Category) => { setEditCat(c); setForm({ name: c.name, color: c.color, sortOrder: c.sortOrder, active: c.active, itemCount: c.itemCount }) }
+  const openEdit = (c: ApiCategory) => { setEditCat(c); setForm({ name: c.name, color: c.color, sortOrder: c.sortOrder, active: c.active, itemCount: 0 }) }
   const closeAll = () => { setAddOpen(false); setEditCat(null); setDeleteId(null) }
 
-  const handleSaveNew = () => { if (!form.name.trim()) return; setCats(p => [...p, { ...form, id: `c${Date.now()}` }]); closeAll() }
-  const handleSaveEdit = () => { if (!editCat || !form.name.trim()) return; setCats(p => p.map(c => c.id === editCat.id ? { ...form, id: editCat.id } : c)); closeAll() }
-  const handleDelete = () => { setCats(p => p.filter(c => c.id !== deleteId)); setDeleteId(null) }
-  const toggleActive = (id: string) => setCats(p => p.map(c => c.id === id ? { ...c, active: !c.active } : c))
+  const handleSaveNew = async () => { if (!form.name.trim()) return; await addCategory({ name: form.name, color: form.color, sortOrder: form.sortOrder, active: form.active }); closeAll() }
+  const handleSaveEdit = async () => { if (!editCat || !form.name.trim()) return; await updateCategory(editCat.id, { name: form.name, color: form.color, sortOrder: form.sortOrder, active: form.active }); closeAll() }
+  const handleDelete = async () => { if (!deleteId) return; await deleteCategory(deleteId); setDeleteId(null) }
+  const toggleActive = async (cat: ApiCategory) => { await updateCategory(cat.id, { active: !cat.active }) }
 
   const FormBody = () => (
     <div className="flex flex-col gap-4">
@@ -98,7 +106,7 @@ export function CategoryPage() {
     </div>
   )
 
-  const totalItems = cats.reduce((acc, c) => acc + c.itemCount, 0)
+  const totalItems = items.length
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-bg">
@@ -171,10 +179,10 @@ export function CategoryPage() {
                   {/* Center */}
                   <div className="flex shrink-0 items-center gap-3 sm:gap-4">
                     <div className="flex flex-col items-center">
-                      <span className="tabular-nums text-[0.8125rem] font-bold text-text sm:text-[0.875rem]">{cat.itemCount}</span>
+                      <span className="tabular-nums text-[0.8125rem] font-bold text-text sm:text-[0.875rem]">{items.filter(i => i.categoryId === cat.id).length}</span>
                       <span className="text-[0.5625rem] font-bold uppercase tracking-wider text-text-sec sm:text-[0.625rem]">Items</span>
                     </div>
-                    <button onClick={() => toggleActive(cat.id)} type="button"
+                    <button onClick={() => toggleActive(cat)} type="button"
                       className={cn("rounded-full px-2 py-1 text-[0.5625rem] font-bold uppercase tracking-wider transition-all duration-150 active:scale-95 sm:text-[0.625rem]",
                         cat.active ? "bg-green-light text-green hover:bg-green hover:text-white" : "bg-panel text-text-sec hover:bg-slate hover:text-white")}>
                       {cat.active ? "Active" : "Inactive"}

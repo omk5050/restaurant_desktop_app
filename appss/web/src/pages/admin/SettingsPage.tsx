@@ -1,7 +1,7 @@
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useState, useEffect } from "react"
 import {
-  Building2, Check, Globe, Hash, Percent, Settings as SettingsIcon,
-  Upload, Printer, ChefHat, CreditCard, Bell, Users, Palette, ShieldAlert,
+  Building2, Check, Globe, Percent, Hash,
+  Upload, Printer, Palette,
   RotateCcw, Sun, Moon, Monitor
 } from "lucide-react"
 import { Button, Card, Input } from "@/components/ui"
@@ -9,18 +9,12 @@ import { cn } from "@/lib/cn"
 import { defaultSettings, type RestaurantSettings } from "@/mocks"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { useTheme } from "@/contexts/ThemeContext"
+import { useSettingsStore } from "@/store/settingsStore"
 
-type Theme = RestaurantSettings["theme"]
-
-const THEMES: Array<{ id: Theme; label: string; color: string }> = [
-  { id: "orange", label: "Orange (Default)", color: "#F97316" },
-  { id: "blue",   label: "Ocean Blue",       color: "#2563EB" },
-  { id: "green",  label: "Forest Green",     color: "#16A34A" },
-  { id: "purple", label: "Royal Purple",     color: "#7C3AED" },
-]
 
 const CURRENCIES = ["INR (₹)", "USD ($)", "EUR (€)", "GBP (£)", "AED (د.إ)"]
 const TIMEZONES  = ["Asia/Kolkata", "Asia/Dubai", "America/New_York", "Europe/London", "Asia/Singapore"]
+
 
 const NAV_ITEMS = [
   { id: "General", icon: Globe, desc: "Currency and timezone" },
@@ -51,19 +45,59 @@ const SectionGroup = ({ title, description, children }: { title: string; descrip
 )
 
 export function SettingsPage() {
+  const { settings: apiSettings, fetchSettings, updateSettings } = useSettingsStore()
   const [settings, setSettings] = useState<RestaurantSettings>(defaultSettings)
   const [saved,    setSaved]    = useState(false)
   const [activeTab, setActiveTab] = useState("General")
   const themeCtx = useTheme()
 
+  // Load from API and sync into local state
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  useEffect(() => {
+    if (apiSettings) {
+      setSettings(prev => ({
+        ...prev,
+        name: apiSettings.restaurantName || prev.name,
+        address: apiSettings.address || prev.address,
+        phone: apiSettings.phone || prev.phone,
+        email: apiSettings.email || prev.email,
+        website: apiSettings.website || prev.website,
+        gstNumber: apiSettings.gstNumber || prev.gstNumber,
+        gstPercent: apiSettings.gstPercent ?? prev.gstPercent,
+        serviceChargePercent: apiSettings.serviceChargePercent ?? prev.serviceChargePercent,
+        currency: apiSettings.currency || prev.currency,
+        receiptFooter: apiSettings.receiptFooter || prev.receiptFooter,
+        theme: (apiSettings.theme as RestaurantSettings["theme"]) || prev.theme,
+        timezone: apiSettings.timezone || prev.timezone,
+      }))
+    }
+  }, [apiSettings])
+
   const set = <K extends keyof RestaurantSettings>(key: K, value: RestaurantSettings[K]) =>
     setSettings(prev => ({ ...prev, [key]: value }))
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    await updateSettings({
+      restaurantName: settings.name,
+      address: settings.address,
+      phone: settings.phone,
+      email: settings.email,
+      website: settings.website,
+      gstNumber: settings.gstNumber,
+      gstPercent: settings.gstPercent,
+      serviceChargePercent: settings.serviceChargePercent,
+      currency: settings.currency,
+      receiptFooter: settings.receiptFooter,
+      theme: settings.theme,
+      timezone: settings.timezone,
+    })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
-  
+
   const handleReset = () => {
     setSettings(defaultSettings)
   }

@@ -1,11 +1,12 @@
-import { useState, type ReactNode } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { BottomNav, Sidebar } from "@/components/layout"
-import { defaultSidebarItems, type SidebarItemId } from "@/components/layout"
-import { cn } from "@/lib/cn"
-import { type DiningTable, type PaymentMethod, type Screen, tables } from "@/mocks/pos"
+import { type SidebarItemId } from "@/components/layout"
+import type { PaymentMethod, Screen } from "@/mocks/pos"
 import { useCart } from "@/hooks/useCart"
+import { useOrderStore } from "@/store/orderStore"
 // POS pages
 import { TablesPage }     from "@/pages/TablesPage"
+import type { DiningTable } from "@/pages/TablesPage"
 import { TableOrderPage } from "@/pages/TableOrderPage"
 import { PaymentPage }    from "@/pages/PaymentPage"
 import { InvoicePage }    from "@/pages/InvoicePage"
@@ -13,9 +14,9 @@ import { MenuPage }       from "@/pages/MenuPage"
 import { OrdersPage }     from "@/pages/OrdersPage"
 import { ReportsPage }    from "@/pages/ReportsPage"
 // Admin pages
-import { CategoryPage }        from "@/pages/admin/CategoryPage"
-import { TablesManagementPage} from "@/pages/admin/TablesManagementPage"
-import { SettingsPage }        from "@/pages/admin/SettingsPage"
+import { CategoryPage }         from "@/pages/admin/CategoryPage"
+import { TablesManagementPage } from "@/pages/admin/TablesManagementPage"
+import { SettingsPage }         from "@/pages/admin/SettingsPage"
 
 // ── Helpers ────────────────────────────────────────────────────────
 const FULLSCREEN_SCREENS: Screen[] = ["tableOrder", "payment", "invoice"]
@@ -43,10 +44,7 @@ const AppShell = ({
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto">{children}</div>
         <div className="lg:hidden">
-          <BottomNav
-            activeItem={activeItem}
-            onNavigate={onNavigate}
-          />
+          <BottomNav activeItem={activeItem} onNavigate={onNavigate} />
         </div>
       </div>
     </div>
@@ -56,21 +54,41 @@ const AppShell = ({
 // ── Root ───────────────────────────────────────────────────────────
 export function App() {
   const [screen,        setScreen]        = useState<Screen>("tables")
-  const [selectedTable, setSelectedTable] = useState<DiningTable>(tables[0])
+  const [selectedTable, setSelectedTable] = useState<DiningTable | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash")
   const [customerName,  setCustomerName]  = useState("")
   const [kitchenNote,   setKitchenNote]   = useState("")
 
-  const cart = useCart()
-  const gst   = Math.round(cart.subtotal * 0.15)
-  const total  = cart.subtotal + gst
+  const cart  = useCart()
+  const gst   = Math.round(cart.subtotal * 0.05)   // 5% GST
+  const total = cart.subtotal + gst
 
   const navigate = (id: SidebarItemId) => setScreen(id as Screen)
+
+  // Fetch initial orders
+  useEffect(() => {
+    useOrderStore.getState().fetchOrders()
+  }, [])
 
   const openTable = (table: DiningTable) => {
     setSelectedTable(table)
     cart.clearCart()
-    setCustomerName("")
+    
+    // Sync active order if it exists for this table
+    const activeOrder = useOrderStore.getState().getOrderForTable(table.id)
+    if (activeOrder) {
+      setCustomerName(activeOrder.customerName || "")
+      activeOrder.items.forEach(item => {
+        cart.addItem({
+          id: item.menuItemId,
+          name: item.name,
+          price: item.price,
+          image: ""
+        }, item.qty)
+      })
+    } else {
+      setCustomerName("")
+    }
     setKitchenNote("")
     setScreen("tableOrder")
   }
@@ -89,7 +107,7 @@ export function App() {
       {screen === "orders"  && <OrdersPage />}
       {screen === "reports" && <ReportsPage />}
 
-      {screen === "tableOrder" && (
+      {screen === "tableOrder" && selectedTable && (
         <TableOrderPage
           cart={cart}
           customerName={customerName}
@@ -101,18 +119,21 @@ export function App() {
           selectedTable={selectedTable}
         />
       )}
-      {screen === "payment" && (
+      {screen === "payment" && selectedTable && (
         <PaymentPage
           cartItems={cart.cartItems}
           gst={gst}
           onBack={() => setScreen("tableOrder")}
-          onComplete={() => setScreen("invoice")}
+          onComplete={(method) => {
+            setPaymentMethod(method)
+            setScreen("invoice")
+          }}
           selectedTable={selectedTable}
           subtotal={cart.subtotal}
           total={total}
         />
       )}
-      {screen === "invoice" && (
+      {screen === "invoice" && selectedTable && (
         <InvoicePage
           cartItems={cart.cartItems}
           customerName={customerName}
@@ -126,9 +147,9 @@ export function App() {
       )}
 
       {/* ── Admin ────────────────────────────────────────── */}
-      {screen === "categories"    && <CategoryPage />}
-      {screen === "tables-admin"  && <TablesManagementPage />}
-      {screen === "settings"      && <SettingsPage />}
+      {screen === "categories"   && <CategoryPage />}
+      {screen === "tables-admin" && <TablesManagementPage />}
+      {screen === "settings"     && <SettingsPage />}
     </AppShell>
   )
 }

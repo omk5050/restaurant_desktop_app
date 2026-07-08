@@ -1,7 +1,8 @@
 import { ArrowLeft, ReceiptText } from "lucide-react"
 import { Button, Card } from "@/components/ui"
 import { Header } from "@/components/layout"
-import { type DiningTable, type PaymentMethod } from "@/mocks/pos"
+import { type PaymentMethod } from "@/mocks/pos"
+import { type ApiTable as DiningTable } from "@/store/tableStore"
 import { money } from "@/utils/currency"
 import type { CartItem } from "@/types/common"
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
@@ -33,25 +34,28 @@ export function InvoicePage({
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-bg">
-      <Header
-        title="Invoice"
-        trailing={
-          <div className="flex items-center gap-2 print:hidden">
-            <Button variant="secondary" onClick={onBackToTables}>
-              <ArrowLeft size={16} /> Back to Tables
-            </Button>
-            <Button onClick={() => window.print()}>
-              <ReceiptText size={16} /> Print (Ctrl+P)
-            </Button>
-          </div>
-        }
-      />
+      <div className="print:hidden">
+        <Header
+          title="Invoice"
+          trailing={
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" onClick={onBackToTables}>
+                <ArrowLeft size={16} /> Back to Tables
+              </Button>
+              <Button onClick={() => window.print()}>
+                <ReceiptText size={16} /> Print (Ctrl+P)
+              </Button>
+            </div>
+          }
+        />
+      </div>
 
       <main className="flex flex-1 overflow-y-auto bg-bg py-6 px-4">
         <div className="mx-auto w-full max-w-[25rem]">
 
           {/* Thermal receipt card */}
-          <Card className="overflow-hidden border border-border p-0 shadow-warm print:shadow-none print:border-0 print:bg-white">
+          <Card className="overflow-hidden border border-border p-0 shadow-warm print-receipt-card print:shadow-none print:border-0 print:bg-white">
+
 
             {/* Receipt header */}
             <div className="bg-espresso px-5 py-6 text-center text-white">

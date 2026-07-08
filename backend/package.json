@@ -1,0 +1,20 @@
+{
+  "name": "restaurant-pos-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Restaurant POS Desktop App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.6.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.15.0",
+    "multer": "^1.4.5-lts.2"
+  }
+}

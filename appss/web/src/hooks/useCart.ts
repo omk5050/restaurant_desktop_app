@@ -11,26 +11,28 @@ export interface PosItem {
 }
 
 export interface UseCartReturn {
-  cart:       Cart
-  cartItems:  CartItem[]
-  itemCount:  number
-  subtotal:   number
-  addItem:    (item: PosItem) => void
-  removeItem: (id: string) => void
-  clearItem:  (id: string) => void
-  clearCart:  () => void
-  getQty:     (id: string) => number
+  cart:            Cart
+  cartItems:       CartItem[]
+  itemCount:       number
+  subtotal:        number
+  addItem:         (item: PosItem, quantity?: number) => void
+  removeItem:      (id: string) => void
+  clearItem:       (id: string) => void
+  clearCart:       () => void
+  getQty:          (id: string) => number
+  markAllKotSent:  () => void
+  hasUnsentItems:  boolean
 }
 
 export function useCart(): UseCartReturn {
   const [cart, setCart] = useState<Cart>({})
 
-  const addItem = useCallback((item: PosItem) => {
+  const addItem = useCallback((item: PosItem, quantity = 1) => {
     setCart(prev => ({
       ...prev,
       [item.id]: prev[item.id]
-        ? { ...prev[item.id], quantity: prev[item.id].quantity + 1 }
-        : { id: item.id, name: item.name, price: item.price, image: item.image, quantity: 1 },
+        ? { ...prev[item.id], quantity: prev[item.id].quantity + quantity, kotSent: false }
+        : { id: item.id, name: item.name, price: item.price, image: item.image, quantity, kotSent: false },
     }))
   }, [])
 
@@ -56,9 +58,23 @@ export function useCart(): UseCartReturn {
 
   const getQty = useCallback((id: string) => cart[id]?.quantity ?? 0, [cart])
 
+  // Mark every item in the cart as kotSent after KOT is fired
+  const markAllKotSent = useCallback(() => {
+    setCart(prev => {
+      const updated: Cart = {}
+      for (const key of Object.keys(prev)) {
+        updated[key] = { ...prev[key], kotSent: true }
+      }
+      return updated
+    })
+  }, [])
+
   const cartItems = useMemo(() => Object.values(cart), [cart])
   const subtotal  = useMemo(() => cartItems.reduce((s, i) => s + i.price * i.quantity, 0), [cartItems])
   const itemCount = useMemo(() => cartItems.reduce((s, i) => s + i.quantity, 0), [cartItems])
 
-  return { cart, cartItems, itemCount, subtotal, addItem, removeItem, clearItem, clearCart, getQty }
+  // True when at least one item hasn't been sent via KOT yet
+  const hasUnsentItems = useMemo(() => cartItems.some(i => !i.kotSent), [cartItems])
+
+  return { cart, cartItems, itemCount, subtotal, addItem, removeItem, clearItem, clearCart, getQty, markAllKotSent, hasUnsentItems }
 }

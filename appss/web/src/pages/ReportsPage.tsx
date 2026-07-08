@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   Calendar,
   ChevronDown,
   Download,
@@ -23,11 +22,12 @@ const HeroPanel = () => (
         </p>
       </div>
       <div className="shrink-0 rounded-2xl bg-primary px-4 py-3 text-center shadow-sm">
-        <p className="text-[1.5rem] font-black leading-none tabular-nums">₹0</p>
+        <p className="text-[1.5rem] font-black leading-none tabular-nums">{money.format(0)}</p>
         <p className="mt-1 text-[0.625rem] font-bold uppercase tracking-widest text-white/90">today</p>
       </div>
     </div>
   </section>
+
 )
 
 const StatTile = ({ label, tone = "orange", value, icon: Icon }: {

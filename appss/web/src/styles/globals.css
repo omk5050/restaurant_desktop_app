@@ -122,3 +122,40 @@
     background-color: var(--color-text-sec);
   }
 }
+
+@media print {
+  body, html, #root {
+    background-color: white !important;
+    color: black !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  header, footer, nav, aside, button, .print-hidden, .print\:hidden {
+    display: none !important;
+  }
+
+  div, main {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .print-receipt-card {
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  @page {
+    margin: 0;
+    size: portrait;
+  }
+}
+

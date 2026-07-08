@@ -94,5 +94,6 @@ export interface CartItem {
   price:    number
   quantity: number
   image:    string
+  kotSent:  boolean   // true once this item has been sent via KOT
 }
 export type Cart = Record<string, CartItem>

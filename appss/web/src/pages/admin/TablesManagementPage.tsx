@@ -1,24 +1,34 @@
-import { useState, useMemo, type ReactNode } from "react"
+import { useState, useMemo, useEffect, type ReactNode } from "react"
 import {
-  LayoutGrid, Pencil, Plus, Trash2, Search, Filter, MoreHorizontal,
-  Armchair, CheckCircle2, XCircle, Users, Coffee
+  LayoutGrid, Pencil, Plus, Trash2, Search,
+  Armchair, CheckCircle2, Users, Coffee
 } from "lucide-react"
 import { Button, Card, Input } from "@/components/ui"
 import { cn } from "@/lib/cn"
-import { adminTables, type AdminTable, type AdminTableSection, type AdminTableStatus } from "@/mocks"
+import { type AdminTableSection, type AdminTableStatus } from "@/mocks"
 import { Dialog, ConfirmDialog } from "@/components/admin/Dialog"
 import { EmptyState } from "@/components/shared/EmptyState"
+import { useTableStore, type ApiTable } from "@/store/tableStore"
 
 const STATUS_META: Record<AdminTableStatus, { label: string; cls: string }> = {
   empty:  { label: "Available", cls: "bg-panel text-text-sec" },
   active: { label: "Occupied",  cls: "bg-primary-light text-primary" },
   bill:   { label: "Reserved",  cls: "bg-blue-light text-blue" },
-  paid:   { label: "Cleaning",  cls: "bg-orange-100 text-orange-600" }, // Mocked for design
+  paid:   { label: "Cleaning",  cls: "bg-orange-100 text-orange-600" },
 }
 
 const SECTIONS: AdminTableSection[] = ["Restaurant", "Family Section", "Takeaway"]
 const FLOORS   = ["Ground", "First", "Rooftop"]
-const BLANK: Omit<AdminTable, "id"> = { name: "", seats: 4, section: "Restaurant", floor: "Ground", status: "empty" }
+
+interface FormTable {
+  name: string
+  seats: number
+  section: AdminTableSection
+  floor: string
+  status: AdminTableStatus
+}
+
+const BLANK: FormTable = { name: "", seats: 4, section: "Restaurant", floor: "Ground", status: "empty" }
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <div className="flex flex-col gap-2">
@@ -51,13 +61,17 @@ const StatTile = ({ label, value, icon: Icon, tone = "orange" }: { label: string
 }
 
 export function TablesManagementPage() {
-  const [tables,    setTables]    = useState<AdminTable[]>(adminTables)
+  const { tables, fetchTables, addTable, updateTable, deleteTable } = useTableStore()
   const [section,   setSection]   = useState<AdminTableSection | "All">("All")
   const [search,    setSearch]    = useState("")
   const [addOpen,   setAddOpen]   = useState(false)
-  const [editTable, setEditTable] = useState<AdminTable | null>(null)
-  const [deleteId,  setDeleteId]  = useState<string | null>(null)
-  const [form,      setForm]      = useState<Omit<AdminTable, "id">>(BLANK)
+  const [editTable, setEditTable] = useState<ApiTable | null>(null)
+  const [deleteId,  setDeleteId]  = useState<number | null>(null)
+  const [form,      setForm]      = useState<FormTable>(BLANK)
+
+  useEffect(() => {
+    fetchTables()
+  }, [fetchTables])
 
   const filtered = useMemo(() => {
     let result = section === "All" ? tables : tables.filter(t => t.section === section)
@@ -68,12 +82,38 @@ export function TablesManagementPage() {
   }, [tables, section, search])
 
   const openAdd  = () => { setForm(BLANK); setAddOpen(true) }
-  const openEdit = (t: AdminTable) => { setEditTable(t); setForm({ name: t.name, seats: t.seats, section: t.section, floor: t.floor, status: t.status }) }
+  const openEdit = (t: ApiTable) => { setEditTable(t); setForm({ name: t.name, seats: t.seats, section: t.section as AdminTableSection, floor: "Ground", status: t.status as AdminTableStatus }) }
   const closeAll = () => { setAddOpen(false); setEditTable(null); setDeleteId(null) }
 
-  const handleSaveNew  = () => { if (!form.name.trim()) return; setTables(p => [...p, { ...form, id: `t${Date.now()}` }]); closeAll() }
-  const handleSaveEdit = () => { if (!editTable) return; setTables(p => p.map(t => t.id === editTable.id ? { ...form, id: editTable.id } : t)); closeAll() }
-  const handleDelete   = () => { setTables(p => p.filter(t => t.id !== deleteId)); setDeleteId(null) }
+  const handleSaveNew  = async () => {
+    if (!form.name.trim()) return
+    const nextId = tables.reduce((max, t) => (t.id > max ? t.id : max), 0) + 1
+    await addTable({
+      id: nextId,
+      name: form.name,
+      seats: form.seats,
+      section: form.section as any,
+      status: form.status as any,
+    })
+    closeAll()
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editTable || !form.name.trim()) return
+    await updateTable(editTable.id, {
+      name: form.name,
+      seats: form.seats,
+      section: form.section as any,
+      status: form.status as any,
+    })
+    closeAll()
+  }
+
+  const handleDelete   = async () => {
+    if (deleteId === null) return
+    await deleteTable(deleteId)
+    setDeleteId(null)
+  }
 
   const counts = useMemo(() => ({
     total:  tables.length,
@@ -185,7 +225,7 @@ export function TablesManagementPage() {
                       {table.section}
                     </p>
                     <p className="mt-1 text-[0.75rem] font-medium text-text-sec text-center">
-                      {table.seats} Seats &middot; Floor {table.floor}
+                      {table.seats} Seats &middot; Floor Ground
                     </p>
 
                     {/* Action Buttons */}
@@ -215,7 +255,7 @@ export function TablesManagementPage() {
         footer={<><Button variant="secondary" onClick={closeAll} className="h-10 rounded-xl px-4 text-[0.8125rem]">Cancel</Button><Button onClick={handleSaveEdit} className="h-10 rounded-xl px-4 text-[0.8125rem]">Save Changes</Button></>}>
         <FormBody />
       </Dialog>
-      <ConfirmDialog open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete}
+      <ConfirmDialog open={deleteId !== null} onClose={() => setDeleteId(null)} onConfirm={handleDelete}
         title="Delete Table" message={`Delete table "${tables.find(t => t.id === deleteId)?.name}"? This cannot be undone.`} />
     </div>
   )
