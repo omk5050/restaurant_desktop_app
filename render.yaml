@@ -4,9 +4,8 @@ services:
     env: node
     region: singapore
     plan: free
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: node server.js
+    buildCommand: npm install --prefix backend && npm install --prefix appss/web && npm run build --prefix appss/web
+    startCommand: node backend/server.js
     envVars:
       - key: MONGODB_URI
         sync: false
