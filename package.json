@@ -1,0 +1,40 @@
+{
+  "name": "restaurant-pos-desktop",
+  "version": "1.0.0",
+  "description": "Desktop wrapper for Restaurant POS",
+  "main": "main.js",
+  "scripts": {
+    "dev:frontend": "npm run dev --prefix appss/web",
+    "dev:backend": "npm start --prefix backend",
+    "dev:electron": "wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:electron\"",
+    "build:frontend": "npm run build --prefix appss/web",
+    "dist": "npm run build:frontend && electron-builder"
+  },
+  "build": {
+    "appId": "com.restaurantpos.app",
+    "productName": "RestaurantPOS",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "main.js",
+      "backend/**/*",
+      "appss/web/dist/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
+  }
+}
