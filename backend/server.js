@@ -916,3 +916,312 @@ app.get("*", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Restaurant POS Backend running on port ${PORT}`);
 });
+
+// ============================================================
+// 15. MONTHLY REPORT — Excel + Email via Resend
+// ============================================================
+const cron    = require("node-cron");
+const ExcelJS = require("exceljs");
+const { Resend } = require("resend");
+
+const resend     = new Resend(process.env.RESEND_API_KEY);
+const RESEND_FROM = process.env.RESEND_FROM || "reports@restaurant-pos.app";
+
+// ── Build Excel buffer ────────────────────────────────────────────────────
+async function buildMonthlyExcel({ adminName, monthLabel, completed, cancelled }) {
+  const workbook  = new ExcelJS.Workbook();
+  workbook.creator = "Restaurant POS";
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet("Monthly Transactions", {
+    pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true },
+  });
+
+  // Theme colours
+  const HEADER_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1C0A00" } };
+  const ALT_FILL    = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF7ED" } };
+  const GREEN_FILL  = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1FAE5" } };
+  const RED_FILL    = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFEE2E2" } };
+  const TOTAL_FILL  = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF97316" } };
+  const PLAIN_FILL  = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
+  const BORDER      = { style: "thin", color: { argb: "FFE5E7EB" } };
+  const CELL_BORDER = { top: BORDER, left: BORDER, bottom: BORDER, right: BORDER };
+
+  const headerFont = { name: "Calibri", bold: true, size: 11, color: { argb: "FFFFFFFF" } };
+  const bodyFont   = { name: "Calibri", size: 10 };
+  const totalFont  = { name: "Calibri", bold: true, size: 11, color: { argb: "FFFFFFFF" } };
+
+  // Title row
+  sheet.mergeCells("A1:L1");
+  const titleCell = sheet.getCell("A1");
+  titleCell.value = `${adminName} — Monthly Report · ${monthLabel}`;
+  titleCell.font  = { name: "Calibri", bold: true, size: 14, color: { argb: "FF1C0A00" } };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  titleCell.fill  = ALT_FILL;
+  sheet.getRow(1).height = 28;
+
+  // Column definitions
+  sheet.columns = [
+    { key: "no",      header: "#",              width: 6  },
+    { key: "orderNo", header: "Order No",       width: 12 },
+    { key: "table",   header: "Table",          width: 10 },
+    { key: "date",    header: "Date",           width: 13 },
+    { key: "time",    header: "Time",           width: 10 },
+    { key: "items",   header: "Items",          width: 36 },
+    { key: "subtotal",header: "Subtotal (Rs)",  width: 14 },
+    { key: "gst",     header: "GST (Rs)",       width: 11 },
+    { key: "total",   header: "Total (Rs)",     width: 14 },
+    { key: "payment", header: "Payment Method", width: 16 },
+    { key: "type",    header: "Type",           width: 11 },
+    { key: "status",  header: "Status",         width: 14 },
+  ];
+
+  // Header row (row 2)
+  const headerRow = sheet.getRow(2);
+  headerRow.height = 22;
+  sheet.columns.forEach((col, i) => {
+    const cell     = headerRow.getCell(i + 1);
+    cell.value     = col.header;
+    cell.font      = headerFont;
+    cell.fill      = HEADER_FILL;
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.border    = CELL_BORDER;
+  });
+
+  // Helpers
+  const fmtDate = (iso) => {
+    try {
+      return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    } catch { return iso || ""; }
+  };
+  const fmtTime = (iso) => {
+    try {
+      return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    } catch { return ""; }
+  };
+  const fmtItems = (items = []) =>
+    (items || []).map(it => `${it.name} x${it.qty}`).join(", ") || "—";
+
+  // Merge + sort all rows by date
+  const allRows = [
+    ...completed.map(inv => ({ ...inv, _status: "completed" })),
+    ...cancelled.map(ord => ({ ...ord, _status: "cancelled"  })),
+  ].sort((a, b) => {
+    const ta = (a.createdAt || a.openedAt || "");
+    const tb = (b.createdAt || b.openedAt || "");
+    return ta.localeCompare(tb);
+  });
+
+  let rowIdx   = 3;
+  let rowCount = 0;
+
+  for (const rec of allRows) {
+    rowCount++;
+    const isCompleted = rec._status === "completed";
+    const dateStr     = rec.createdAt || rec.openedAt || "";
+    const tableLabel  = rec.isTakeaway ? "Takeaway" : `T${rec.tableId}`;
+    const isEven      = rowCount % 2 === 0;
+
+    const rowData = {
+      no:       rowCount,
+      orderNo:  rec.orderNo || rec.id,
+      table:    tableLabel,
+      date:     fmtDate(dateStr),
+      time:     fmtTime(dateStr),
+      items:    fmtItems(rec.items),
+      subtotal: rec.subtotal ?? 0,
+      gst:      rec.gstAmount ?? 0,
+      total:    isCompleted ? (rec.total ?? 0) : 0,
+      payment:  isCompleted ? (rec.paymentMethod || "—") : "—",
+      type:     rec.isTakeaway ? "Takeaway" : "Dine-in",
+      status:   isCompleted ? "Completed" : "Cancelled",
+    };
+
+    const baseFill = isEven ? ALT_FILL : PLAIN_FILL;
+    const row      = sheet.getRow(rowIdx);
+    row.height     = 18;
+
+    sheet.columns.forEach((col, ci) => {
+      const cell = row.getCell(ci + 1);
+      cell.value     = rowData[col.key];
+      cell.font      = bodyFont;
+      cell.border    = CELL_BORDER;
+      cell.alignment = { vertical: "middle", wrapText: col.key === "items" };
+
+      if (col.key === "status") {
+        cell.fill  = isCompleted ? GREEN_FILL : RED_FILL;
+        cell.font  = { ...bodyFont, bold: true, color: { argb: isCompleted ? "FF065F46" : "FF991B1B" } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      } else {
+        cell.fill = baseFill;
+      }
+
+      if (["subtotal", "gst", "total"].includes(col.key)) {
+        cell.alignment = { horizontal: "right", vertical: "middle" };
+        cell.numFmt    = "#,##0.00";
+      }
+      if (col.key === "no") {
+        cell.alignment = { horizontal: "right", vertical: "middle" };
+      }
+    });
+
+    rowIdx++;
+  }
+
+  // Total row
+  const totalRevenue = completed.reduce((s, inv) => s + (inv.total ?? 0), 0);
+  const totalRow     = sheet.getRow(rowIdx);
+  totalRow.height    = 24;
+
+  sheet.mergeCells(`A${rowIdx}:H${rowIdx}`);
+  const labelCell         = totalRow.getCell(1);
+  labelCell.value         = `Total Revenue for ${monthLabel}`;
+  labelCell.font          = totalFont;
+  labelCell.fill          = TOTAL_FILL;
+  labelCell.alignment     = { horizontal: "right", vertical: "middle" };
+  labelCell.border        = CELL_BORDER;
+
+  const totalCell         = totalRow.getCell(9);
+  totalCell.value         = totalRevenue;
+  totalCell.numFmt        = "#,##0.00";
+  totalCell.font          = totalFont;
+  totalCell.fill          = TOTAL_FILL;
+  totalCell.border        = CELL_BORDER;
+  totalCell.alignment     = { horizontal: "right", vertical: "middle" };
+
+  for (let c = 10; c <= 12; c++) {
+    const cell  = totalRow.getCell(c);
+    cell.fill   = TOTAL_FILL;
+    cell.border = CELL_BORDER;
+  }
+
+  sheet.views = [{ state: "frozen", ySplit: 2 }];
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return { buffer, totalRevenue, rowCount };
+}
+
+// ── Core report sender ────────────────────────────────────────────────────
+async function sendMonthlyReport(adminId, adminEmail, adminName) {
+  try {
+    const now       = new Date();
+    const year      = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const month     = now.getMonth() === 0 ? 12 : now.getMonth();
+    const monthStr  = String(month).padStart(2, "0");
+    const prefix    = `${year}-${monthStr}`;
+    const monthLabel = new Date(year, month - 1, 1)
+      .toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+
+    console.log(`[Monthly Report] Generating — adminId=${adminId}, month=${prefix}`);
+
+    const completed = await Invoice.find({
+      adminId,
+      createdAt: { $regex: `^${prefix}` },
+    }).lean();
+
+    const cancelled = await Order.find({
+      adminId,
+      openedAt: { $regex: `^${prefix}` },
+      status:   { $in: ["open", "hold"] },
+    }).lean();
+
+    if (completed.length === 0 && cancelled.length === 0) {
+      console.log(`[Monthly Report] No data for ${prefix}, skipping.`);
+      return { skipped: true, reason: "No transactions" };
+    }
+
+    const { buffer, totalRevenue, rowCount } = await buildMonthlyExcel({
+      adminName, monthLabel, completed, cancelled,
+    });
+
+    const filename = `${adminName.replace(/\s+/g, "_")}_Report_${prefix}.xlsx`;
+
+    const settings = await Settings.findOne({ adminId }).lean();
+    const restaurantName = settings?.restaurantName || adminName;
+
+    const emailResult = await resend.emails.send({
+      from:    RESEND_FROM,
+      to:      adminEmail,
+      subject: `Monthly Report — ${restaurantName} · ${monthLabel}`,
+      html: `
+        <div style="font-family:'Segoe UI',Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#fff;">
+          <div style="background:#1C0A00;padding:28px 32px;border-radius:12px 12px 0 0;">
+            <h1 style="color:#F97316;margin:0;font-size:22px;">Monthly Transaction Report</h1>
+            <p style="color:rgba(255,255,255,0.7);margin:6px 0 0;font-size:14px;">${restaurantName} &middot; ${monthLabel}</p>
+          </div>
+          <div style="padding:28px 32px;background:#FFFBF5;border:1px solid #F3E8D8;border-top:none;border-radius:0 0 12px 12px;">
+            <p style="color:#374151;font-size:15px;margin:0 0 16px;">Hi <strong>${adminName}</strong>,</p>
+            <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 20px;">
+              Your monthly transaction report for <strong>${monthLabel}</strong> is attached as an Excel file.
+            </p>
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:20px;margin-bottom:24px;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr>
+                  <td style="padding:8px 0;color:#6B7280;font-size:13px;">Total Transactions</td>
+                  <td style="padding:8px 0;font-weight:700;font-size:14px;text-align:right;">${rowCount}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#6B7280;font-size:13px;">Completed Orders</td>
+                  <td style="padding:8px 0;font-weight:700;color:#065F46;font-size:14px;text-align:right;">${completed.length}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#6B7280;font-size:13px;">Cancelled Orders</td>
+                  <td style="padding:8px 0;font-weight:700;color:#991B1B;font-size:14px;text-align:right;">${cancelled.length}</td>
+                </tr>
+                <tr style="border-top:2px solid #F97316;">
+                  <td style="padding:12px 0 4px;color:#111827;font-weight:700;font-size:15px;">Total Revenue</td>
+                  <td style="padding:12px 0 4px;font-weight:800;color:#F97316;font-size:18px;text-align:right;">
+                    Rs ${totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <p style="color:#9CA3AF;font-size:12px;margin:0;">
+              Auto-generated by Restaurant POS on ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.
+            </p>
+          </div>
+        </div>
+      `,
+      attachments: [
+        {
+          filename,
+          content: Buffer.from(buffer).toString("base64"),
+        },
+      ],
+    });
+
+    console.log(`[Monthly Report] Sent to ${adminEmail} — id: ${emailResult?.data?.id}`);
+    return { success: true, emailId: emailResult?.data?.id, totalRevenue, rowCount };
+  } catch (err) {
+    console.error(`[Monthly Report] Error for ${adminId}:`, err);
+    return { success: false, error: err.message };
+  }
+}
+
+// ── Cron: 00:00 on the 1st of every month (IST) ──────────────────────────
+cron.schedule("0 0 1 * *", async () => {
+  console.log("[Monthly Report] Cron fired — emailing all admins...");
+  try {
+    const admins = await User.find({ role: "admin" });
+    for (const admin of admins) {
+      await sendMonthlyReport(admin._id.toString(), admin.email, admin.name);
+    }
+    console.log("[Monthly Report] All admins processed.");
+  } catch (err) {
+    console.error("[Monthly Report] Cron error:", err);
+  }
+}, { scheduled: true, timezone: "Asia/Kolkata" });
+
+// ── Manual trigger for testing: POST /api/reports/send-monthly ───────────
+app.post("/api/reports/send-monthly", async (req, res) => {
+  try {
+    const adminId = req.query.adminId || (await getDemoAdminId());
+    const admin   = await User.findById(adminId);
+    if (!admin) return res.status(404).json({ error: "Admin not found." });
+    const result = await sendMonthlyReport(adminId, admin.email, admin.name);
+    res.json(result);
+  } catch (err) {
+    console.error("[Monthly Report] Manual trigger error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
