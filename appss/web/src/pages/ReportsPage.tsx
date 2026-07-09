@@ -800,7 +800,6 @@ const PaymentDonutCard = ({ breakdown, total, subtitle, onClick }: {
 export function ReportsPage() {
   const [summary,   setSummary]   = useState<SummaryData | null>(null)
   const [weekData,  setWeekData]  = useState<DailyData[]>([])
-  const [todayData, setTodayData] = useState<DailyData | null>(null)
   const [loading,   setLoading]   = useState(true)
 
   // Modal states
@@ -811,12 +810,8 @@ export function ReportsPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [summaryRes, todayRes] = await Promise.all([
-        api.get<SummaryData>("/reports/summary"),
-        api.get<DailyData>("/reports/daily"),
-      ])
+      const summaryRes = await api.get<SummaryData>("/reports/summary")
       setSummary(summaryRes.data)
-      setTodayData(todayRes.data)
 
       // Load last 7 days (with invoices)
       const days = lastNDays(7)
