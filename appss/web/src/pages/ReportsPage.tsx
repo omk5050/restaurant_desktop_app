@@ -749,7 +749,7 @@ const PaymentDonutCard = ({ breakdown, total, subtitle, onClick }: {
         </div>
       </div>
 
-      <div className="mt-8 flex h-48 items-center justify-between gap-6 px-4">
+      <div className="mt-4 flex h-48 items-center justify-between gap-6 px-4">
         {/* SVG Donut */}
         <div className="relative flex size-32 items-center justify-center">
           {total === 0 ? (
