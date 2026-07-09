@@ -1225,3 +1225,53 @@ app.post("/api/reports/send-monthly", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── GET /api/reports/export-excel (downloads current month's report) ───────
+app.get("/api/reports/export-excel", async (req, res) => {
+  try {
+    const adminId = req.query.adminId || (await getDemoAdminId());
+    const admin   = await User.findById(adminId);
+    if (!admin) return res.status(404).json({ error: "Admin not found." });
+
+    const now       = new Date();
+    const year      = now.getFullYear();
+    const month     = now.getMonth() + 1; // 1-based current month
+    const monthStr  = String(month).padStart(2, "0");
+    const prefix    = req.query.month || `${year}-${monthStr}`; // e.g. "2026-07"
+    
+    // Parse year and month from prefix to get month label
+    const [pYear, pMonth] = prefix.split("-").map(Number);
+    const monthLabel = new Date(pYear, pMonth - 1, 1)
+      .toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+
+    console.log(`[Monthly Report] Manual Excel Export — adminId=${adminId}, prefix=${prefix}`);
+
+    const completed = await Invoice.find({
+      adminId,
+      createdAt: { $regex: `^${prefix}` },
+    }).lean();
+
+    const cancelled = await Order.find({
+      adminId,
+      openedAt: { $regex: `^${prefix}` },
+      status:   { $in: ["open", "hold"] },
+    }).lean();
+
+    const { buffer } = await buildMonthlyExcel({
+      adminName: admin.name,
+      monthLabel,
+      completed,
+      cancelled,
+    });
+
+    const filename = `${admin.name.replace(/\s+/g, "_")}_Report_${prefix}.xlsx`;
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error("[Monthly Report] Export Excel error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+

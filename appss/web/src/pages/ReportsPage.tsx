@@ -859,6 +859,46 @@ export function ReportsPage() {
   const ordersBars = weekData.map(d => Math.round((d.totalOrders / maxOrders) * 100))
   const ordersTotal = weekData.reduce((s, d) => s + d.totalOrders, 0)
 
+  const [exporting, setExporting] = useState(false)
+
+  const handleExportExcel = async () => {
+    setExporting(true)
+    try {
+      const selectedAdminId = localStorage.getItem("selected_admin_id")
+      const currentAdminId = localStorage.getItem("current_admin_id")
+      const adminId = selectedAdminId || currentAdminId || ""
+
+      const response = await api.get("/reports/export-excel", {
+        params: { adminId },
+        responseType: "blob",
+      })
+
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
+      const url = window.URL.createObjectURL(blob)
+
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, "0")
+      const prefix = `${year}-${month}`
+
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", `Monthly_Report_${prefix}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+
+      link.parentNode?.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("Export Excel error:", err)
+      alert("Failed to export Excel report. Please try again.")
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-bg">
 
@@ -882,9 +922,17 @@ export function ReportsPage() {
             Refresh
           </button>
 
-          <button type="button" className="flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[0.8125rem] font-bold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-primary-dark active:scale-[0.97]">
-            <Download size={16} />
-            Export
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={exporting}
+            className={cn(
+              "flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[0.8125rem] font-bold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-primary-dark active:scale-[0.97]",
+              exporting && "opacity-60 cursor-not-allowed"
+            )}
+          >
+            <Download size={16} className={cn(exporting && "animate-bounce")} />
+            {exporting ? "Exporting…" : "Export"}
           </button>
         </div>
       </header>
