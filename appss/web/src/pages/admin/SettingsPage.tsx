@@ -1,8 +1,8 @@
-import { type ReactNode, useState, useEffect } from "react"
+import { type ReactNode, useState, useEffect, useRef } from "react"
 import {
   Building2, Check, Globe, Percent, Hash,
   Upload, Printer, Palette,
-  RotateCcw, Sun, Moon, Monitor, LogOut
+  RotateCcw, Sun, Moon, Monitor, LogOut, RefreshCw
 } from "lucide-react"
 import { Button, Card, Input } from "@/components/ui"
 import { cn } from "@/lib/cn"
@@ -10,6 +10,7 @@ import { defaultSettings, type RestaurantSettings } from "@/mocks"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useSettingsStore } from "@/store/settingsStore"
+import { api } from "@/lib/api"
 
 
 const CURRENCIES = ["INR (₹)", "USD ($)", "EUR (€)", "GBP (£)", "AED (د.إ)"]
@@ -55,6 +56,31 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
   const [activeTab, setActiveTab] = useState("General")
   const themeCtx = useTheme()
 
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setLogoUploading(true)
+    const formData = new FormData()
+    formData.append("logo", file)
+
+    try {
+      const { data } = await api.post<{ url: string }>("/settings/upload-logo", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      })
+      setSettings(prev => ({ ...prev, logoUrl: data.url }))
+      await updateSettings({ logoUrl: data.url })
+    } catch (err) {
+      console.error("Upload logo error:", err)
+      alert("Failed to upload logo image.")
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
   // Load from API and sync into local state
   useEffect(() => {
     fetchSettings()
@@ -77,6 +103,7 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
         receiptFooter: apiSettings.receiptFooter || prev.receiptFooter,
         theme: (apiSettings.theme as RestaurantSettings["theme"]) || prev.theme,
         timezone: apiSettings.timezone || prev.timezone,
+        logoUrl: apiSettings.logoUrl || prev.logoUrl,
       }))
     }
   }, [apiSettings])
@@ -99,6 +126,7 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
       receiptFooter: settings.receiptFooter,
       theme: settings.theme,
       timezone: settings.timezone,
+      logoUrl: settings.logoUrl,
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -133,14 +161,43 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
         return (
           <div className="flex flex-col gap-8">
             <SectionGroup title="Brand Identity" description="Upload your restaurant logo and branding assets.">
-              <div className="group relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border bg-panel p-8 transition-colors hover:border-primary/50 hover:bg-primary/5">
-                <div className="flex size-14 items-center justify-center rounded-2xl bg-card shadow-sm text-primary transition-transform group-hover:scale-105">
-                  <Upload size={24} strokeWidth={2.5} />
-                </div>
-                <div className="text-center">
-                  <p className="text-[0.8125rem] font-bold text-text">Upload Restaurant Logo</p>
-                  <p className="mt-1 text-[0.6875rem] font-medium text-text-sec">PNG, JPG up to 2MB</p>
-                </div>
+              <div 
+                onClick={() => logoInputRef.current?.click()}
+                className="group relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border bg-panel p-8 transition-colors hover:border-primary/50 hover:bg-primary/5 min-h-[10rem]"
+              >
+                <input 
+                  type="file" 
+                  ref={logoInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleLogoUpload} 
+                />
+                
+                {logoUploading ? (
+                  <div className="text-center py-4">
+                    <RefreshCw size={24} className="animate-spin text-primary mx-auto mb-2" />
+                    <p className="text-[0.8125rem] font-bold text-text">Uploading...</p>
+                  </div>
+                ) : settings.logoUrl ? (
+                  <div className="relative flex flex-col items-center gap-2">
+                    <img 
+                      src={settings.logoUrl} 
+                      alt="Logo" 
+                      className="size-20 rounded-xl object-contain border border-border bg-white p-1" 
+                    />
+                    <p className="text-[0.6875rem] font-bold text-primary hover:text-primary-dark">Click to change logo</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex size-14 items-center justify-center rounded-2xl bg-card shadow-sm text-primary transition-transform group-hover:scale-105">
+                      <Upload size={24} strokeWidth={2.5} />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[0.8125rem] font-bold text-text">Upload Restaurant Logo</p>
+                      <p className="mt-1 text-[0.6875rem] font-medium text-text-sec">PNG, JPG up to 2MB</p>
+                    </div>
+                  </>
+                )}
               </div>
             </SectionGroup>
             

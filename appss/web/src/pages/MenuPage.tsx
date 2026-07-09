@@ -444,9 +444,14 @@ export function MenuPage() {
     }
   }, [categories, addForm.category])
 
-  const filtered = activeCategory === "all"
-    ? items
-    : items.filter(i => i.categoryId === activeCategory)
+  const activeCategories = categories.filter(c => c.active !== false)
+  const activeCategoryIds = new Set(activeCategories.map(c => c.id))
+
+  const filtered = items.filter(i => {
+    if (!activeCategoryIds.has(i.categoryId)) return false
+    if (activeCategory === "all") return true
+    return i.categoryId === activeCategory
+  })
 
   const vegCount   = items.filter(i => i.isVeg).length
   const avgPrice   = items.length > 0 ? Math.round(items.reduce((s, i) => s + i.price, 0) / items.length) : 0
@@ -585,7 +590,7 @@ export function MenuPage() {
             >
               All
             </button>
-            {categories.map(cat => (
+            {activeCategories.map(cat => (
               <button
                 key={cat.id}
                 type="button"

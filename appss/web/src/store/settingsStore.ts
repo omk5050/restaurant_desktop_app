@@ -23,6 +23,7 @@ export interface ApiSettings {
   restaurantTableCount: number
   familyTableCount:     number
   takeawayTableCount:   number
+  logoUrl?:             string
 }
 
 interface SettingsState {

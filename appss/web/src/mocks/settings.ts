@@ -13,6 +13,7 @@ export interface RestaurantSettings {
   receiptFooter:         string
   theme:                 "orange" | "blue" | "green" | "purple"
   timezone:              string
+  logoUrl?:              string
 }
 
 export const defaultSettings: RestaurantSettings = {

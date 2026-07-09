@@ -1419,20 +1419,26 @@ export function TableOrderPage({
   }
 
   // ── Menu data ─────────────────────────────────────────────────────────────
-  const posCategories: string[] = apiCategories.length > 0
-    ? apiCategories.map(c => c.name)
+  const activeApiCategories = apiCategories.filter(c => c.active !== false)
+
+  const posCategories: string[] = activeApiCategories.length > 0
+    ? activeApiCategories.map(c => c.name)
     : ["All"]
 
-  const posMenuItems = apiItems.map(i => ({
-    id:    i.id,
-    name:  i.name,
-    price: i.price,
-    image: i.imageUrl || "",
-    emoji: i.emoji,
-    isVeg: i.isVeg,
-    categoryName: apiCategories.find(c => c.id === i.categoryId)?.name || "",
-    isAvailable: i.isAvailable,
-  }))
+  const activeCategoryIds = new Set(activeApiCategories.map(c => c.id))
+
+  const posMenuItems = apiItems
+    .filter(i => activeCategoryIds.has(i.categoryId))
+    .map(i => ({
+      id:    i.id,
+      name:  i.name,
+      price: i.price,
+      image: i.imageUrl || "",
+      emoji: i.emoji,
+      isVeg: i.isVeg,
+      categoryName: activeApiCategories.find(c => c.id === i.categoryId)?.name || "",
+      isAvailable: i.isAvailable,
+    }))
 
   const [activeCategory, setActiveCategory] = useState<string>("")
   const [vegFilter, setVegFilter]           = useState<VegFilter>("all")
@@ -1442,21 +1448,21 @@ export function TableOrderPage({
   const itemCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const cat of posCategories) {
-      const catId = apiCategories.find(c => c.name === cat)?.id
+      const catId = activeApiCategories.find(c => c.name === cat)?.id
       counts[cat] = catId ? apiItems.filter(i => i.categoryId === catId).length : posMenuItems.length
     }
     return counts
-  }, [posCategories, apiCategories, apiItems, posMenuItems.length])
+  }, [posCategories, activeApiCategories, apiItems, posMenuItems.length])
 
   const filteredItems = useMemo(() => {
-    const catId = apiCategories.find(c => c.name === activeCategory)?.id
+    const catId = activeApiCategories.find(c => c.name === activeCategory)?.id
     return posMenuItems.filter(item => {
       const matchCat    = !catId || item.categoryName === activeCategory
       const matchSearch = search === "" || item.name.toLowerCase().includes(search.toLowerCase())
       const matchVeg    = vegFilter === "all" || (vegFilter === "veg" ? item.isVeg : !item.isVeg)
       return matchCat && matchSearch && item.isAvailable && matchVeg
     })
-  }, [activeCategory, search, posMenuItems, apiCategories, vegFilter])
+  }, [activeCategory, search, posMenuItems, activeApiCategories, vegFilter])
 
   useKeyboardShortcuts([
     { key: "Escape", ctrl: false, action: onBack },

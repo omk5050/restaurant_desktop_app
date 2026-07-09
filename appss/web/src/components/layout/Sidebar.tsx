@@ -11,6 +11,7 @@ export type SidebarProps = {
   restaurantName?: string
   userName?:       string
   userRole?:       string
+  logoUrl?:        string
 }
 
 const getInitials = (name: string) =>
@@ -25,6 +26,7 @@ export const Sidebar = ({
   restaurantName = "Restaurant POS",
   userName       = "John Doe",
   userRole       = "Manager",
+  logoUrl,
 }: SidebarProps) => {
   // Group items by section
   const posItems   = items.filter(i => i.section === "pos")
@@ -82,13 +84,20 @@ export const Sidebar = ({
           href="/"
           onClick={e => { if (onNavigate) { e.preventDefault(); onNavigate("tables") } }}
         >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-warm">
-            <Utensils aria-hidden="true" size={18} strokeWidth={2.5} />
-          </span>
+          {logoUrl ? (
+            <img 
+              src={logoUrl} 
+              alt={restaurantName} 
+              className="size-9 shrink-0 rounded-xl object-cover border border-border/40 bg-white p-0.5 shadow-warm" 
+            />
+          ) : (
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-warm">
+              <Utensils aria-hidden="true" size={18} strokeWidth={2.5} />
+            </span>
+          )}
           {!collapsed && (
             <span className="min-w-0">
               <span className="block truncate text-[0.875rem] font-black text-text leading-tight">{restaurantName}</span>
-              <span className="block truncate text-[0.625rem] font-bold text-text-sec uppercase tracking-wider">Web Edition</span>
             </span>
           )}
         </a>

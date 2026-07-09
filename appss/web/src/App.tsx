@@ -31,19 +31,29 @@ const getActiveItem = (screen: Screen): SidebarItemId => {
 
 // ── Layout wrapper ─────────────────────────────────────────────────
 const AppShell = ({
-  activeItem, children, fullscreen, onNavigate, restaurantName,
+  activeItem, children, fullscreen, onNavigate, restaurantName, userName, userRole, logoUrl
 }: {
   activeItem:      SidebarItemId
   children:        ReactNode
   fullscreen:      boolean
   onNavigate:      (id: SidebarItemId) => void
   restaurantName?: string
+  userName?:       string
+  userRole?:       string
+  logoUrl?:        string
 }) => {
   if (fullscreen) return <>{children}</>
   return (
     <div className="flex h-full overflow-hidden bg-bg">
       <div className="hidden lg:flex">
-        <Sidebar activeItem={activeItem} onNavigate={onNavigate} restaurantName={restaurantName} />
+        <Sidebar 
+          activeItem={activeItem} 
+          onNavigate={onNavigate} 
+          restaurantName={restaurantName} 
+          userName={userName}
+          userRole={userRole === "admin" ? "Manager" : userRole || "Manager"}
+          logoUrl={logoUrl}
+        />
       </div>
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto">{children}</div>
@@ -59,6 +69,7 @@ const AppShell = ({
 export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole,        setUserRole]        = useState<string | null>(null)
+  const [userName,        setUserName]        = useState("Manager")
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null)
 
   const [screen,        setScreen]        = useState<Screen>("tables")
@@ -78,7 +89,25 @@ export function App() {
     localStorage.removeItem("current_admin_id")
     setSelectedAdminId(null)
     setUserRole(null)
+    setUserName("Manager")
     setIsAuthenticated(false)
+  }, [])
+
+  const [todayRevenue, setTodayRevenue] = useState(0)
+
+  const fetchTodayRevenue = useCallback(async () => {
+    try {
+      const selectedAdminId = localStorage.getItem("selected_admin_id")
+      const currentAdminId = localStorage.getItem("current_admin_id")
+      const adminId = selectedAdminId || currentAdminId || ""
+
+      const { data } = await api.get<{ todayRevenue: number }>("/reports/summary", {
+        params: { adminId }
+      })
+      setTodayRevenue(data.todayRevenue || 0)
+    } catch (err) {
+      console.error("fetchTodayRevenue error:", err)
+    }
   }, [])
 
   // Load settings once at root level when authenticated
@@ -89,19 +118,23 @@ export function App() {
     }
   }, [isAuthenticated, fetchSettings])
 
-  // Fetch initial orders when authenticated
+  // Fetch initial orders and revenue when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       useOrderStore.getState().fetchOrders()
+      fetchTodayRevenue()
+      const interval = setInterval(fetchTodayRevenue, 10000)
+      return () => clearInterval(interval)
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, fetchTodayRevenue])
 
-  const handleLoginSuccess = (token: string, role: string, adminId: string) => {
+  const handleLoginSuccess = (token: string, role: string, adminId: string, name: string) => {
     localStorage.setItem("pos_token", token)
     localStorage.setItem("current_admin_id", adminId)
     localStorage.removeItem("selected_admin_id")
     setSelectedAdminId(null)
     setUserRole(role)
+    setUserName(name || "Manager")
     setIsAuthenticated(true)
   }
 
@@ -111,6 +144,7 @@ export function App() {
     localStorage.removeItem("current_admin_id")
     setSelectedAdminId(null)
     setUserRole(null)
+    setUserName("Manager")
     setIsAuthenticated(false)
   }
 
@@ -207,6 +241,9 @@ export function App() {
           fullscreen={fullscreen}
           onNavigate={navigate}
           restaurantName={restaurantName}
+          userName={userName}
+          userRole={userRole || "Manager"}
+          logoUrl={settings?.logoUrl}
         >
           {/* ── POS ─────────────────────────────────────────── */}
           {screen === "tables"  && (
@@ -214,6 +251,7 @@ export function App() {
               onOpenTable={openTable}
               restaurantName={restaurantName}
               tagline={tagline}
+              todayRevenue={todayRevenue}
             />
           )}
           {screen === "menu"    && <MenuPage />}

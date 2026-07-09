@@ -84,6 +84,7 @@ const SettingsSchema = new mongoose.Schema({
   restaurantTableCount: { type: Number, default: 6 },
   familyTableCount:     { type: Number, default: 4 },
   takeawayTableCount:   { type: Number, default: 4 },
+  logoUrl:              { type: String, default: "" },
 });
 const Settings = mongoose.model("Settings", SettingsSchema);
 
@@ -630,6 +631,27 @@ app.post("/api/menu/upload-image", upload.single("image"), async (req, res) => {
     res.status(500).json({ error: "Image upload failed." });
   }
 });
+
+// Upload restaurant logo to Cloudinary
+app.post("/api/settings/upload-logo", upload.single("logo"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded." });
+
+    const b64 = req.file.buffer.toString("base64");
+    const dataUri = `data:${req.file.mimetype};base64,${b64}`;
+
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: "restaurant_logo",
+      resource_type: "image",
+    });
+
+    res.json({ url: result.secure_url });
+  } catch (err) {
+    console.error("Logo upload error:", err);
+    res.status(500).json({ error: "Logo upload failed." });
+  }
+});
+
 
 // ============================================================
 // 9. ROUTES — Orders
