@@ -1,10 +1,11 @@
-import { useState, useEffect, type ReactNode } from "react"
+import { useState, useEffect, useCallback, type ReactNode } from "react"
 import { BottomNav, Sidebar } from "@/components/layout"
 import { type SidebarItemId } from "@/components/layout"
 import type { PaymentMethod, Screen } from "@/mocks/pos"
 import { useCart } from "@/hooks/useCart"
 import { useOrderStore } from "@/store/orderStore"
 import { useSettingsStore } from "@/store/settingsStore"
+import { api } from "@/lib/api"
 // POS pages
 import { TablesPage }     from "@/pages/TablesPage"
 import type { DiningTable } from "@/pages/TablesPage"
