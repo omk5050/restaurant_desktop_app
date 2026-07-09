@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, type ReactNode } from "react"
+import { useState, useMemo, useEffect, useCallback, type ReactNode } from "react"
 import {
   LayoutGrid, Pencil, Plus, Trash2, Search,
   Armchair, CheckCircle2, Users, Coffee
@@ -60,6 +60,53 @@ const StatTile = ({ label, value, icon: Icon, tone = "orange" }: { label: string
   )
 }
 
+// ── FormBody extracted as top-level component to prevent remount on parent re-render ──
+interface FormBodyProps {
+  form: FormTable
+  onChange: (updated: Partial<FormTable>) => void
+}
+
+const FormBody = ({ form, onChange }: FormBodyProps) => (
+  <div className="grid gap-4 sm:grid-cols-2">
+    <Field label="Table Name / Number *">
+      <Input
+        value={form.name}
+        onChange={e => onChange({ name: e.target.value })}
+        placeholder="e.g. T1 or A1"
+        className="h-10 text-[0.8125rem] rounded-xl"
+      />
+    </Field>
+    <Field label="Seating Capacity">
+      <Input
+        type="number"
+        min={1}
+        max={20}
+        value={form.seats}
+        className="h-10 text-[0.8125rem] rounded-xl"
+        onChange={e => onChange({ seats: Number(e.target.value) })}
+      />
+    </Field>
+    <Field label="Section">
+      <select
+        value={form.section}
+        onChange={e => onChange({ section: e.target.value as AdminTableSection })}
+        className="h-10 w-full rounded-xl border border-border bg-card px-3 text-[0.8125rem] outline-none transition-[border-color] focus:border-primary"
+      >
+        {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+    </Field>
+    <Field label="Floor">
+      <select
+        value={form.floor}
+        onChange={e => onChange({ floor: e.target.value })}
+        className="h-10 w-full rounded-xl border border-border bg-card px-3 text-[0.8125rem] outline-none transition-[border-color] focus:border-primary"
+      >
+        {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
+      </select>
+    </Field>
+  </div>
+)
+
 export function TablesManagementPage() {
   const { tables, fetchTables, addTable, updateTable, deleteTable } = useTableStore()
   const [section,   setSection]   = useState<AdminTableSection | "All">("All")
@@ -72,6 +119,10 @@ export function TablesManagementPage() {
   useEffect(() => {
     fetchTables()
   }, [fetchTables])
+
+  const handleFormChange = useCallback((updated: Partial<FormTable>) => {
+    setForm(prev => ({ ...prev, ...updated }))
+  }, [])
 
   const filtered = useMemo(() => {
     let result = section === "All" ? tables : tables.filter(t => t.section === section)
@@ -121,30 +172,6 @@ export function TablesManagementPage() {
     empty:  tables.filter(t => t.status === "empty").length,
     seats:  tables.reduce((s, t) => s + t.seats, 0),
   }), [tables])
-
-  const FormBody = () => (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Table Name / Number *">
-        <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. T1 or A1" className="h-10 text-[0.8125rem] rounded-xl" />
-      </Field>
-      <Field label="Seating Capacity">
-        <Input type="number" min={1} max={20} value={form.seats} className="h-10 text-[0.8125rem] rounded-xl"
-          onChange={e => setForm(p => ({ ...p, seats: Number(e.target.value) }))} />
-      </Field>
-      <Field label="Section">
-        <select value={form.section} onChange={e => setForm(p => ({ ...p, section: e.target.value as AdminTableSection }))}
-          className="h-10 w-full rounded-xl border border-border bg-card px-3 text-[0.8125rem] outline-none transition-[border-color] focus:border-primary">
-          {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-      </Field>
-      <Field label="Floor">
-        <select value={form.floor} onChange={e => setForm(p => ({ ...p, floor: e.target.value }))}
-          className="h-10 w-full rounded-xl border border-border bg-card px-3 text-[0.8125rem] outline-none transition-[border-color] focus:border-primary">
-          {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
-        </select>
-      </Field>
-    </div>
-  )
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-bg">
@@ -249,11 +276,11 @@ export function TablesManagementPage() {
 
       <Dialog open={addOpen} onClose={closeAll} title="Add Table"
         footer={<><Button variant="secondary" onClick={closeAll} className="h-10 rounded-xl px-4 text-[0.8125rem]">Cancel</Button><Button onClick={handleSaveNew} className="h-10 rounded-xl px-4 text-[0.8125rem]">Save Table</Button></>}>
-        <FormBody />
+        <FormBody form={form} onChange={handleFormChange} />
       </Dialog>
       <Dialog open={!!editTable} onClose={closeAll} title="Edit Table"
         footer={<><Button variant="secondary" onClick={closeAll} className="h-10 rounded-xl px-4 text-[0.8125rem]">Cancel</Button><Button onClick={handleSaveEdit} className="h-10 rounded-xl px-4 text-[0.8125rem]">Save Changes</Button></>}>
-        <FormBody />
+        <FormBody form={form} onChange={handleFormChange} />
       </Dialog>
       <ConfirmDialog open={deleteId !== null} onClose={() => setDeleteId(null)} onConfirm={handleDelete}
         title="Delete Table" message={`Delete table "${tables.find(t => t.id === deleteId)?.name}"? This cannot be undone.`} />
