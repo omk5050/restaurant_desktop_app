@@ -903,12 +903,6 @@ async function getDemoAdminId() {
   return admin ? admin._id.toString() : null;
 }
 
-// ============================================================
-// 13. CATCH-ALL — Serve frontend SPA
-// ============================================================
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../appss/web/dist", "index.html"));
-});
 
 // ============================================================
 // 14. START SERVER
@@ -1274,4 +1268,9 @@ app.get("/api/reports/export-excel", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+// ============================================================
+// 13. CATCH-ALL — Serve frontend SPA (MUST BE LAST ROUTE)
+// ============================================================
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../appss/web/dist", "index.html"));
+});
