@@ -180,11 +180,11 @@ const PaymentDetailModal = ({ open, onClose, invoices, payBreakdown, total }: {
   const methodKeys = Object.keys(payBreakdown)
 
   return (
-    <Modal open={open} onClose={onClose} title="Payment Analysis" subtitle="Today's complete payment breakdown">
+    <Modal open={open} onClose={onClose} title="Payment Analysis" subtitle="Weekly payment breakdown · Last 7 days">
       {/* Summary strip */}
       <div className="grid grid-cols-2 gap-3 border-b border-border p-5 sm:grid-cols-4">
         {methodKeys.length === 0 ? (
-          <p className="col-span-4 text-center text-[0.875rem] text-text-sec py-2">No payment data for today</p>
+          <p className="col-span-4 text-center text-[0.875rem] text-text-sec py-2">No payment data for this week</p>
         ) : (
           methodKeys.map(method => {
             const { label, icon: Icon, color, bg } = getPayMeta(method)
@@ -210,7 +210,7 @@ const PaymentDetailModal = ({ open, onClose, invoices, payBreakdown, total }: {
         {invoices.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-10 text-center">
             <Receipt size={32} strokeWidth={1.5} className="mx-auto mb-2 text-text-sec/40" />
-            <p className="text-[0.875rem] text-text-sec">No transactions today yet</p>
+            <p className="text-[0.875rem] text-text-sec">No transactions this week yet</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -243,7 +243,7 @@ const PaymentDetailModal = ({ open, onClose, invoices, payBreakdown, total }: {
         {/* Total footer */}
         {invoices.length > 0 && (
           <div className="mt-4 flex items-center justify-between rounded-2xl bg-espresso px-5 py-3 text-white">
-            <p className="text-[0.8125rem] font-bold opacity-70">Total Collected Today</p>
+            <p className="text-[0.8125rem] font-bold opacity-70">Total Collected This Week</p>
             <p className="text-[1.125rem] font-black tabular-nums">{money.format(total)}</p>
           </div>
         )}
@@ -688,9 +688,10 @@ const BarChartCard = ({ bars, labels, title, subtitle, total, variant = "orange"
 )
 
 // ── Clickable Donut Card ─────────────────────────────────────────────────────
-const PaymentDonutCard = ({ breakdown, total, onClick }: {
+const PaymentDonutCard = ({ breakdown, total, subtitle, onClick }: {
   breakdown: Record<string, { count: number; amount: number }>
   total:     number
+  subtitle?: string
   onClick:   () => void
 }) => {
   const cash   = breakdown["cash"]?.amount   ?? 0
@@ -738,7 +739,7 @@ const PaymentDonutCard = ({ breakdown, total, onClick }: {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-[1rem] font-black text-text">Payment comparison</h2>
-          <p className="mt-0.5 text-[0.75rem] font-medium text-text-sec">Cash vs UPI vs Card</p>
+          <p className="mt-0.5 text-[0.75rem] font-medium text-text-sec">{subtitle ?? "Cash vs UPI vs Card · Last 7 days"}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
           <p className="text-[1.25rem] font-black tabular-nums text-primary">{money.format(total)}</p>
@@ -846,10 +847,17 @@ export function ReportsPage() {
   const weekLabels   = weekData.map(d => shortLabel(d.date))
   const weekTotal    = weekRevenues.reduce((s, v) => s + v, 0)
 
-  // Today's payment breakdown
-  const payBreakdown = todayData?.paymentBreakdown ?? {}
-  const payTotal     = todayData?.totalRevenue ?? 0
-  const todayInvoices: InvoiceRecord[] = (todayData?.invoices ?? []) as InvoiceRecord[]
+  // Weekly payment breakdown — aggregate across all 7 days
+  const payBreakdown = weekData.reduce<Record<string, { count: number; amount: number }>>((acc, day) => {
+    Object.entries(day.paymentBreakdown ?? {}).forEach(([method, data]) => {
+      if (!acc[method]) acc[method] = { count: 0, amount: 0 }
+      acc[method].count  += data.count
+      acc[method].amount += data.amount
+    })
+    return acc
+  }, {})
+  const payTotal       = weekTotal
+  const weeklyInvoices: InvoiceRecord[] = weekData.flatMap(d => (d.invoices ?? []) as InvoiceRecord[])
 
   // Weekly orders bar data
   const maxOrders  = Math.max(...weekData.map(x => x.totalOrders), 1)
@@ -931,6 +939,7 @@ export function ReportsPage() {
                 <PaymentDonutCard
                   breakdown={payBreakdown}
                   total={payTotal}
+                  subtitle="Cash vs UPI vs Card · Last 7 days"
                   onClick={() => setPaymentModalOpen(true)}
                 />
               </section>
@@ -961,7 +970,7 @@ export function ReportsPage() {
       <PaymentDetailModal
         open={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
-        invoices={todayInvoices}
+        invoices={weeklyInvoices}
         payBreakdown={payBreakdown}
         total={payTotal}
       />
