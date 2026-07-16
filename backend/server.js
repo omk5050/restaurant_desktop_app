@@ -325,7 +325,7 @@ app.use("/api/auth", authRoutes);
 
 // --- JWT Verification and Admin Isolation Middleware ---
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_key";
+const JWT_SECRET = process.env.JWT_SECRET || "super_secret_key";
 
 app.use((req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -343,7 +343,7 @@ app.use((req, res, next) => {
     
     // For normal admins, force the query to target their authenticated user ID
     if (decoded && decoded.role !== "super-admin") {
-      req.query.adminId = decoded.id;
+      req.query.adminId = decoded.userId || decoded.id;
     }
     next();
   });
